@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @Tag(name = "用户管理")
-@RestController("/user")
+@RestController("/api/user")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -24,7 +24,7 @@ public class UserController {
 
     @Operation(summary = "用户登录", description = "通过手机号和密码进行登录")
     @PostMapping("/login")
-    public LoginVO login(@RequestBody LoginDTO loginDTO) {
+    public Result<LoginVO> login(@RequestBody LoginDTO loginDTO) {
         return userService.login(loginDTO);
     }
 //

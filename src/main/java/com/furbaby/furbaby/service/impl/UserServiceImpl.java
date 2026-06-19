@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.furbaby.furbaby.dto.LoginDTO;
+import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.entity.User;
 import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.exception.PhoneOrPasswordException;
@@ -34,7 +35,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private final JWTUtils jwtUtils;
 
     @Override
-    public LoginVO login(LoginDTO loginDTO) {
+    public Result<LoginVO> login(LoginDTO loginDTO) {
         // 校验手机号与对应用户的密码是否正确
         // 如果正确,则返回登录成功
         User currentLoginUser = lambdaQuery()
@@ -50,7 +51,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             String token = jwtUtils.generateToken(currentLoginUser.getId().toString());
             UserInfoVO userInfoVO = new UserInfoVO();
             BeanUtils.copyProperties(currentLoginUser, userInfoVO);
-            return LoginVO.builder().token(token).userInfo(userInfoVO).build();
+            LoginVO loginVO = LoginVO.builder().token(token).userInfo(userInfoVO).build();
+            return Result.success(loginVO);
 
         } else {
             // 登录失败

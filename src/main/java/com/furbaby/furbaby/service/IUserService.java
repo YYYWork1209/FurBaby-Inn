@@ -1,6 +1,7 @@
 package com.furbaby.furbaby.service;
 
 import com.furbaby.furbaby.dto.LoginDTO;
+import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.furbaby.furbaby.vo.LoginVO;
@@ -15,5 +16,5 @@ import com.furbaby.furbaby.vo.LoginVO;
  */
 public interface IUserService extends IService<User> {
 
-    LoginVO login(LoginDTO loginDTO);
+    Result<LoginVO> login(LoginDTO loginDTO);
 }
