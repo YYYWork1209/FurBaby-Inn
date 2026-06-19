@@ -33,9 +33,9 @@ jwt:
 
 mybatis-plus:
   configuration:
-    # 开启枚举映射处理器，实现枚举型数据对数据库的映射，插入数据枚举类型转换为数据库中的
+    # 开启枚举映射处理器，实现枚举型数据对数据库的映射，插入数据枚举类型转换为数据库中的，还需要再对应的与数据库枚举字段对应的java属性字段上添加@EnumValue注解
     default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
-  type-enums-package: com.furbaby.furbaby.enums
+  type-enums-package: com.furbaby.furbaby.enums # 数据库也是枚举类型，且枚举值与自己定义的一样，所以单独配置映射即可
 
 springdoc:
   swagger-ui:
