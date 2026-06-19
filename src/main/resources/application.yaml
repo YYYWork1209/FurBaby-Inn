@@ -2,9 +2,9 @@ spring:
   application:
     name: furbaby-inn
   datasource:
-    url: jdbc:mysql://localhost:3306/furbaby_inn?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/furbaby_inn?useUnicode=true&serverTimezone=Asia/Shanghai
     username: root
-    password: root
+    password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 数据库连接池配置
   hikari:
@@ -18,26 +18,7 @@ spring:
      max-lifetime: 1200000
      # 连接超时时间。客户端等待从池中获取连接的最长时间。如果在此时间内没有可用连接，则会抛出SQLException。单位是毫秒 (30000ms = 30秒)。
      connection-timeout: 30000
-   # 数据库连接池配置结束
-  jpa: # Java Persistence API (JPA) 相关配置
-   hibernate:
-     # DDL (Data Definition Language) 自动生成策略。
-     # - validate: 启动时验证数据库 schema 与实体是否匹配，不匹配则报错。
-     # - create: 每次启动时删除并重新创建表，用于测试。
-     # - create-drop: 启动时创建，应用关闭时删除表。
-     # - update: 启动时根据实体变化更新表结构（生产环境慎用）。
-     # - none: 不执行任何操作。
-     ddl-auto: validate
-   # 在控制台打印所有由 Hibernate 生成的 SQL 语句，便于调试。
-   show-sql: true
-   # Open Session in View 模式。
-   # - true: 保持 Session 打开直到视图渲染完成，可能导致懒加载异常和性能问题。
-   # - false: 在 Controller 方法执行后关闭 Session，是推荐的最佳实践。
-   open-in-view: false
-   properties:
-     hibernate:
-       # 如果 show-sql 为 true，此配置会将打印的 SQL 语句进行格式化，使其更易读。
-       format_sql: true
+
 jwt:
 #  Keys.hmacShaKeyFor 报错：如果你的 secret 长度小于 32 字节（即少于 32 个字符），启动会报 weak key 异常。
 #  解决：密钥设置成 32 位以上，或使用 Base64 编码的字符串。
@@ -49,3 +30,15 @@ jwt:
   secret: "RnVyYmFieUp3dFNlY3JldEtleTIwMjZZWVlXb3Jr"
   # 过期时间（毫秒），例如 7天 = 7 * 24 * 60 * 60 * 1000
   expiration: 604800000
+
+mybatis-plus:
+  configuration:
+    # 开启枚举映射处理器，实现枚举型数据对数据库的映射，插入数据枚举类型转换为数据库中的
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+  type-enums-package: com.furbaby.furbaby.enums
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
