@@ -6,17 +6,46 @@ spring:
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      minimum-idle: 5
-      maximum-pool-size: 20
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      connection-timeout: 30000
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: true
-    open-in-view: false
-    properties:
-      hibernate:
-        format_sql: true
+    # 数据库连接池配置
+  hikari:
+     # 最小空闲连接数。连接池中维护的最小空闲连接数，即使没有活动，也会保留这么多连接。
+     minimum-idle: 5
+     # 最大连接池大小。连接池中允许的最大连接数，包括空闲和正在使用的连接。
+     maximum-pool-size: 20
+     # 空闲连接超时时间。当连接池中的连接空闲时间超过此值时，它将被标记为可回收。单位是毫秒 (300000ms = 5分钟)。
+     idle-timeout: 300000
+     # 连接最大生命周期。连接池中连接的最长生命周期，超过此时间的连接将被关闭并替换。这有助于防止内存泄漏。单位是毫秒 (1200000ms = 20分钟)。
+     max-lifetime: 1200000
+     # 连接超时时间。客户端等待从池中获取连接的最长时间。如果在此时间内没有可用连接，则会抛出SQLException。单位是毫秒 (30000ms = 30秒)。
+     connection-timeout: 30000
+   # 数据库连接池配置结束
+  jpa: # Java Persistence API (JPA) 相关配置
+   hibernate:
+     # DDL (Data Definition Language) 自动生成策略。
+     # - validate: 启动时验证数据库 schema 与实体是否匹配，不匹配则报错。
+     # - create: 每次启动时删除并重新创建表，用于测试。
+     # - create-drop: 启动时创建，应用关闭时删除表。
+     # - update: 启动时根据实体变化更新表结构（生产环境慎用）。
+     # - none: 不执行任何操作。
+     ddl-auto: validate
+   # 在控制台打印所有由 Hibernate 生成的 SQL 语句，便于调试。
+   show-sql: true
+   # Open Session in View 模式。
+   # - true: 保持 Session 打开直到视图渲染完成，可能导致懒加载异常和性能问题。
+   # - false: 在 Controller 方法执行后关闭 Session，是推荐的最佳实践。
+   open-in-view: false
+   properties:
+     hibernate:
+       # 如果 show-sql 为 true，此配置会将打印的 SQL 语句进行格式化，使其更易读。
+       format_sql: true
+jwt:
+#  Keys.hmacShaKeyFor 报错：如果你的 secret 长度小于 32 字节（即少于 32 个字符），启动会报 weak key 异常。
+#  解决：密钥设置成 32 位以上，或使用 Base64 编码的字符串。
+#
+#  Token 放在 Header 里的格式：通常前端传的是 Authorization: Bearer <token>。
+#  如果要兼容这种写法，拦截器里拿到 token 后需要去掉 Bearer 前缀
+
+  # 密钥（务必足够长，至少32个字符，生产中建议使用 Base64 编码的复杂字符串），这里使用测试用的密钥（FurbabyJwtSecretKey2026YYYWork）进行base64编码来测试
+  secret: "RnVyYmFieUp3dFNlY3JldEtleTIwMjZZWVlXb3Jr"
+  # 过期时间（毫秒），例如 7天 = 7 * 24 * 60 * 60 * 1000
+  expiration: 604800000
