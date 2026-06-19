@@ -81,8 +81,9 @@ public class JWTUtils {
      */
     public String getUserIdFromToken(String token) {
         Claims claims = parseToken(token);
-        return claims.get("userId", String.class); // 从 Claims 中取 userId
+//        return claims.get("userId", String.class); // 从 Claims 中取 userId
         // 或者直接取主题：return claims.getSubject();
+        return claims.getSubject();
     }
 
     /**
