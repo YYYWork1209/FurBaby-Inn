@@ -1,5 +1,7 @@
 package com.furbaby.furbaby.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,7 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "未读计数")
 public class UnreadCountVO {
 
+    @Schema(description = "未读数量")
     private Long count;
 }

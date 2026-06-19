@@ -1,5 +1,7 @@
 package com.furbaby.furbaby.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,8 +11,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "登录响应")
 public class LoginVO {
 
+    @Schema(description = "JWT令牌")
     private String token;
+
+    @Schema(description = "用户信息")
     private UserInfoVO userInfo;
 }

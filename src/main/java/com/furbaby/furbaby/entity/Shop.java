@@ -1,84 +1,71 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.furbaby.furbaby.enums.ShopStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "shop")
+@Schema(description = "商家")
 public class Shop {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "商户用户ID")
     private Long userId;
 
-    @Column(nullable = false, length = 100)
+    @Schema(description = "名称")
     private String name;
 
-    @Column(length = 500)
+    @Schema(description = "头像")
     private String avatar;
 
-    @Column(columnDefinition = "JSON")
+    @Schema(description = "店铺照片")
     private String photos;
 
-    @Column(precision = 2, scale = 1)
-    private Double rating;
+    @Builder.Default
+    @Schema(description = "评分")
+    private Double rating = 5.0;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private java.math.BigDecimal price;
+    @Schema(description = "日单价")
+    private BigDecimal price;
 
-    @Column(columnDefinition = "JSON")
+    @Schema(description = "标签")
     private String tags;
 
-    @Column(nullable = false, length = 255)
+    @Schema(description = "地址")
     private String address;
 
-    @Column(nullable = false, length = 20)
+    @Schema(description = "联系电话")
     private String phone;
 
-    @Column(columnDefinition = "TEXT")
+    @Schema(description = "描述")
     private String description;
 
-    @Column(columnDefinition = "JSON")
+    @Schema(description = "服务项目")
     private String services;
 
-    @Column(columnDefinition = "TEXT")
+    @Schema(description = "入住须知")
     private String notice;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('pending','approved','rejected','disabled')")
-    private Status status;
+    @Builder.Default
+    @Schema(description = "状态")
+    private ShopStatus status = ShopStatus.pending;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum Status {
-        pending, approved, rejected, disabled
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (rating == null) rating = 5.0;
-        if (status == null) status = Status.pending;
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

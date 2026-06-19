@@ -1,6 +1,11 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.furbaby.furbaby.enums.PayMethod;
+import com.furbaby.furbaby.enums.PaymentStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,69 +17,46 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "payment")
+@Schema(description = "支付")
 public class Payment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "payment_no", nullable = false, length = 32)
+    @Schema(description = "支付单号")
     private String paymentNo;
 
-    @Column(name = "order_id", nullable = false)
+    @Schema(description = "订单ID")
     private Long orderId;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "用户ID")
     private Long userId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "pay_method", nullable = false, columnDefinition = "ENUM('wechat','alipay')")
+    @Schema(description = "支付方式")
     private PayMethod payMethod;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Schema(description = "金额")
     private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('pending','success','failed','closed')")
-    private Status status;
+    @Builder.Default
+    @Schema(description = "状态")
+    private PaymentStatus status = PaymentStatus.pending;
 
-    @Column(name = "qr_code", length = 500)
+    @Schema(description = "收款二维码")
     private String qrCode;
 
-    @Column(name = "pay_url", length = 500)
+    @Schema(description = "支付链接")
     private String payUrl;
 
-    @Column(name = "expire_time")
+    @Schema(description = "过期时间")
     private LocalDateTime expireTime;
 
-    @Column(name = "pay_time")
+    @Schema(description = "支付时间")
     private LocalDateTime payTime;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum PayMethod {
-        wechat, alipay
-    }
-
-    public enum Status {
-        pending, success, failed, closed
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (status == null) status = Status.pending;
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

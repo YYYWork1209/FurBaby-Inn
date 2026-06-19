@@ -1,6 +1,9 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,37 +14,30 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "review")
+@Schema(description = "评价")
 public class Review {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "order_id", nullable = false)
+    @Schema(description = "订单ID")
     private Long orderId;
 
-    @Column(name = "shop_id", nullable = false)
+    @Schema(description = "商家ID")
     private Long shopId;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "用户ID")
     private Long userId;
 
-    @Column(nullable = false)
+    @Schema(description = "评分1-5")
     private Integer rating;
 
-    @Column(columnDefinition = "TEXT")
+    @Schema(description = "评价内容")
     private String content;
 
-    @Column(columnDefinition = "JSON")
+    @Schema(description = "评价照片")
     private String photos;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
-
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-    }
 }

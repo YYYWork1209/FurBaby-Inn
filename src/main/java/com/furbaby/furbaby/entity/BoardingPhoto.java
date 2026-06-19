@@ -1,6 +1,9 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,31 +14,24 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "boarding_photo")
+@Schema(description = "寄养照片")
 public class BoardingPhoto {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "order_id", nullable = false)
+    @Schema(description = "订单ID")
     private Long orderId;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "用户ID")
     private Long userId;
 
-    @Column(nullable = false, length = 500)
+    @Schema(description = "照片URL")
     private String url;
 
-    @Column(length = 200)
+    @Schema(description = "描述")
     private String description;
 
-    @Column(name = "upload_time", nullable = false, updatable = false)
+    @Schema(description = "上传时间")
     private LocalDateTime uploadTime;
-
-    @PrePersist
-    protected void onCreate() {
-        uploadTime = LocalDateTime.now();
-    }
 }

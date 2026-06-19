@@ -1,6 +1,9 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,28 +15,21 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "vaccine")
+@Schema(description = "疫苗记录")
 public class Vaccine {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "pet_id", nullable = false)
+    @Schema(description = "宠物ID")
     private Long petId;
 
-    @Column(nullable = false, length = 100)
+    @Schema(description = "疫苗名称")
     private String name;
 
-    @Column(nullable = false)
+    @Schema(description = "接种日期")
     private LocalDate date;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
-
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-    }
 }

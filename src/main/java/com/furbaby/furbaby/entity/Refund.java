@@ -1,6 +1,10 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.furbaby.furbaby.enums.RefundStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,52 +16,34 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "refund")
+@Schema(description = "退款")
 public class Refund {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "order_id", nullable = false)
+    @Schema(description = "订单ID")
     private Long orderId;
 
-    @Column(name = "payment_id", nullable = false)
+    @Schema(description = "支付ID")
     private Long paymentId;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "用户ID")
     private Long userId;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Schema(description = "金额")
     private BigDecimal amount;
 
-    @Column(length = 500)
+    @Schema(description = "原因")
     private String reason;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('pending','success','failed')")
-    private Status status;
+    @Builder.Default
+    @Schema(description = "状态")
+    private RefundStatus status = RefundStatus.pending;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum Status {
-        pending, success, failed
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (status == null) status = Status.pending;
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

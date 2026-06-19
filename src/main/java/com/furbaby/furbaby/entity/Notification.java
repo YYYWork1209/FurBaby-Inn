@@ -1,6 +1,9 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,35 +14,28 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "notification")
+@Schema(description = "通知")
 public class Notification {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "用户ID")
     private Long userId;
 
-    @Column(nullable = false, length = 50)
+    @Schema(description = "通知类型")
     private String type;
 
-    @Column(nullable = false, length = 200)
+    @Schema(description = "标题")
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Schema(description = "内容")
     private String content;
 
-    @Column(name = "is_read", nullable = false)
-    private Boolean isRead;
+    @Builder.Default
+    @Schema(description = "是否已读")
+    private Boolean isRead = false;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
-
-    @PrePersist
-    protected void onCreate() {
-        if (isRead == null) isRead = false;
-        createTime = LocalDateTime.now();
-    }
 }

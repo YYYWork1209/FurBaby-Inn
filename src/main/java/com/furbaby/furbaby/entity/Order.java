@@ -1,6 +1,11 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.furbaby.furbaby.enums.OrderStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,70 +18,53 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "orders")
+@TableName("orders")
+@Schema(description = "订单")
 public class Order {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "order_no", nullable = false, length = 32)
+    @Schema(description = "订单号")
     private String orderNo;
 
-    @Column(name = "user_id", nullable = false)
+    @Schema(description = "用户ID")
     private Long userId;
 
-    @Column(name = "shop_id", nullable = false)
+    @Schema(description = "商家ID")
     private Long shopId;
 
-    @Column(name = "pet_id", nullable = false)
+    @Schema(description = "宠物ID")
     private Long petId;
 
-    @Column(name = "start_date", nullable = false)
+    @Schema(description = "入住日期")
     private LocalDate startDate;
 
-    @Column(name = "end_date", nullable = false)
+    @Schema(description = "离店日期")
     private LocalDate endDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('pending','paid','boarding','completed','cancelled','refunding','refunded')")
-    private Status status;
+    @Builder.Default
+    @Schema(description = "状态")
+    private OrderStatus status = OrderStatus.pending;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Schema(description = "金额")
     private BigDecimal amount;
 
-    @Column(length = 500)
+    @Schema(description = "备注")
     private String remark;
 
-    @Column(name = "pay_time")
+    @Schema(description = "支付时间")
     private LocalDateTime payTime;
 
-    @Column(name = "cancel_time")
+    @Schema(description = "取消时间")
     private LocalDateTime cancelTime;
 
-    @Column(name = "cancel_reason", length = 500)
+    @Schema(description = "取消原因")
     private String cancelReason;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum Status {
-        pending, paid, boarding, completed, cancelled, refunding, refunded
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (status == null) status = Status.pending;
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

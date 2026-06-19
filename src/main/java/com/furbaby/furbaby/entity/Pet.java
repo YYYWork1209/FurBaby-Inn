@@ -1,6 +1,10 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.furbaby.furbaby.enums.PetGender;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,59 +16,42 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "pet")
+@Schema(description = "宠物")
 public class Pet {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "owner_id", nullable = false)
+    @Schema(description = "宠主ID")
     private Long ownerId;
 
-    @Column(nullable = false, length = 50)
+    @Schema(description = "名称")
     private String name;
 
-    @Column(nullable = false, length = 20)
+    @Schema(description = "物种")
     private String species;
 
-    @Column(length = 50)
+    @Schema(description = "品种")
     private String breed;
 
-    @Column(length = 500)
+    @Schema(description = "头像")
     private String avatar;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('male','female')")
-    private Gender gender;
+    @Schema(description = "性别")
+    private PetGender gender;
 
+    @Schema(description = "年龄")
     private Integer age;
 
-    @Column(precision = 5, scale = 1)
+    @Schema(description = "体重")
     private BigDecimal weight;
 
-    @Column(name = "health_notes", columnDefinition = "TEXT")
+    @Schema(description = "健康备注")
     private String healthNotes;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum Gender {
-        male, female
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

@@ -1,6 +1,9 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,43 +16,28 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "shop_schedule", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"shop_id", "date"})
-})
+@Schema(description = "商家档期")
 public class ShopSchedule {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "shop_id", nullable = false)
+    @Schema(description = "商家ID")
     private Long shopId;
 
-    @Column(nullable = false)
+    @Schema(description = "日期")
     private LocalDate date;
 
-    @Column(nullable = false)
-    private Integer available;
+    @Builder.Default
+    @Schema(description = "剩余名额")
+    private Integer available = 0;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Schema(description = "当日价格")
     private BigDecimal price;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    @PrePersist
-    protected void onCreate() {
-        if (available == null) available = 0;
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

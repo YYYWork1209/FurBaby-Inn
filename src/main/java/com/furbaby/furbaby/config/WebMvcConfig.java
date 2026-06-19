@@ -9,13 +9,21 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    @Autowired
-    private LoginIntecepeor loginIntecepeor;
-
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(loginIntecepeor)
-                .addPathPatterns("/**")  // 所有路径
-                .excludePathPatterns("/user/login","/user/register");  // 排除登录和注册路径
-    }
+//    @Autowired
+//    private LoginIntecepeor loginIntecepeor;
+//
+//    @Override
+//    public void addInterceptors(InterceptorRegistry registry) {
+//        registry.addInterceptor(loginIntecepeor)
+//                .addPathPatterns("/**")  // 所有路径
+//                .excludePathPatterns(
+//                        "/user/login",
+//                        "/user/register",
+//                        "/v3/api-docs/**",
+//                        "/swagger-ui/**",
+//                        "/swagger-resources/**",
+//                        "/webjars/**",
+//                        "/doc.html"
+//                );
+//    }
 }

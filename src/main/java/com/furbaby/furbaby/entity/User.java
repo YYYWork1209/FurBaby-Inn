@@ -1,6 +1,10 @@
 package com.furbaby.furbaby.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.furbaby.furbaby.enums.UserRole;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,51 +15,33 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "user")
+@Schema(description = "用户")
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false, length = 20)
+    @Schema(description = "手机号")
     private String phone;
 
-    @Column(nullable = false, length = 255)
+    @Schema(description = "密码")
     private String password;
 
-    @Column(nullable = false, length = 50)
+    @Schema(description = "昵称")
     private String nickname;
 
-    @Column(length = 500)
+    @Schema(description = "头像")
     private String avatar;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('owner','shop')")
-    private Role role;
+    @Schema(description = "用户角色")
+    private UserRole role;
 
-    @Column(length = 100)
+    @Schema(description = "邮箱")
     private String email;
 
-    @Column(name = "create_time", nullable = false, updatable = false)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time", nullable = false)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum Role {
-        owner, shop
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

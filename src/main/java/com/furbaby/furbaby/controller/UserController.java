@@ -1,23 +1,38 @@
 package com.furbaby.furbaby.controller;
 
+import com.furbaby.furbaby.dto.LoginDTO;
+import com.furbaby.furbaby.dto.RegisterDTO;
 import com.furbaby.furbaby.entity.Result;
-import com.furbaby.furbaby.entity.User;
+import com.furbaby.furbaby.service.IUserService;
+import com.furbaby.furbaby.vo.LoginVO;
+import com.furbaby.furbaby.vo.RegisterVO;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-
 @Slf4j
-@ResponseBody
+@Tag(name = "用户管理")
 @RestController("/user")
+@RequiredArgsConstructor
 public class UserController {
 
-    @PostMapping("/login")
-    public Result<Void> login(@RequestBody User user) {
+    private final IUserService userService;
 
-        return Result.success();
+    @Operation(summary = "用户登录", description = "通过手机号和密码进行登录")
+    @PostMapping("/login")
+    public LoginVO login(@RequestBody LoginDTO loginDTO) {
+        return userService.login(loginDTO);
     }
+//
+//    @PostMapping("/register")
+//    public  register(@RequestBody RegisterDTO registerDTO) {
+//        userService.save(registerDTO);
+//        return
+//    }
+
 }
 
