@@ -33,22 +33,7 @@ public class LoginIntecepeor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 从请求头中获取token
-        // 如果token为空,则抛出未授权异常
-        String token =  request.getHeader("Authorization");
-        // 如果token以"Bearer "开头,则移除"Bearer "前缀,保留token内容
-        if (token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }
 
-        if (token == null) {
-            throw new UnAuthorizedException("未登录");
-        }
-        // 如果token不为空,则进行Token验证
-        if(!jwtUtils.validateToken(token)){
-            throw new UnAuthorizedException("请重新登录！");
-        }
-        // 如果token验证通过,则放行请求
         return true;
     }
 
