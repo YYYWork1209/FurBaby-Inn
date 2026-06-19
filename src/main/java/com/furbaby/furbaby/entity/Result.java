@@ -22,17 +22,17 @@ import java.util.List;
 public class Result<T> {
     private String code;
     private String message;
-    private List<T> data;
+    private T data;
 
     public static <E> Result<E> success() {
         return Result.<E>builder()
                 .code("200")
                 .message("成功")
-                .data(List.of())
+                .data(null)
                 .build();
     }
 
-    public static <E> Result<E> success(List<E> data) {
+    public static <E> Result<E> success(E data) {
         return Result.<E>builder()
                 .code("200")
                 .message("成功")
@@ -44,7 +44,7 @@ public class Result<T> {
         return Result.<E>builder()
                 .code("500")
                 .message(message)
-                .data(List.of())
+                .data(null)
                 .build();
     }
 
