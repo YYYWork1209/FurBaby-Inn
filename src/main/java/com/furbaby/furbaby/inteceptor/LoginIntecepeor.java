@@ -2,8 +2,10 @@ package com.furbaby.furbaby.inteceptor;
 
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.exception.UnAuthorizedException;
+import com.furbaby.furbaby.utils.JWTUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -15,6 +17,9 @@ import org.springframework.web.servlet.ModelAndView;
  */
 @Component
 public class LoginIntecepeor implements HandlerInterceptor {
+
+    @Autowired
+    private JWTUtils jwtUtils;
 
     /**
      * 拦截请求,检查用户是否登录
@@ -35,7 +40,10 @@ public class LoginIntecepeor implements HandlerInterceptor {
             throw new UnAuthorizedException("未登录");
         }
         // 如果token不为空,则进行Token验证
-
+        if(!jwtUtils.validateToken(token)){
+            throw new UnAuthorizedException("请重新登录！");
+        }
+        // 如果token验证通过,则放行请求
         return true;
     }
 
