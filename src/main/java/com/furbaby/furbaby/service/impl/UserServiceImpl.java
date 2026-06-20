@@ -57,6 +57,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             String token = jwtUtils.generateToken(currentLoginUser.getId().toString());
             UserInfoVO userInfoVO = new UserInfoVO();
             BeanUtils.copyProperties(currentLoginUser, userInfoVO);
+            // BeanUtils 无法将枚举自动转为 String，手动设置 role
+            userInfoVO.setRole(currentLoginUser.getRole().name());
             LoginVO loginVO = LoginVO.builder().token(token).userInfo(userInfoVO).build();
             return Result.success(loginVO);
 
