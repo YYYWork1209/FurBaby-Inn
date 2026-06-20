@@ -1,10 +1,12 @@
 package com.furbaby.furbaby.controller;
 
 import com.furbaby.furbaby.dto.PaymentCreateDTO;
+import com.furbaby.furbaby.dto.RefundDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IPaymentService;
 import com.furbaby.furbaby.vo.PaymentCreateVO;
 import com.furbaby.furbaby.vo.PaymentStatusVO;
+import com.furbaby.furbaby.vo.RefundVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,15 @@ public class PaymentController {
     @GetMapping("/status/{paymentId}")
     public Result<PaymentStatusVO> getPaymentStatus(@PathVariable Long paymentId) {
         PaymentStatusVO result = paymentService.getPaymentStatus(paymentId);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "申请退款", description = "为指定订单申请退款，仅已支付和寄养中状态可退款")
+    @PostMapping("/refund")
+    public Result<RefundVO> refund(@RequestHeader("Authorization") String authHeader,
+                                    @RequestBody RefundDTO refundDTO) {
+        String token = authHeader.replace("Bearer ", "");
+        RefundVO result = paymentService.refund(token, refundDTO);
         return Result.success(result);
     }
 }
