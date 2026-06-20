@@ -18,6 +18,7 @@ import com.furbaby.furbaby.mapper.ShopMapper;
 import com.furbaby.furbaby.mapper.UserMapper;
 import com.furbaby.furbaby.service.IReviewService;
 import com.furbaby.furbaby.utils.JWTUtils;
+import com.furbaby.furbaby.vo.PageResult;
 import com.furbaby.furbaby.vo.ReviewItemVO;
 import com.furbaby.furbaby.vo.ReviewPageVO;
 import com.furbaby.furbaby.vo.ReviewVO;
@@ -130,6 +131,43 @@ public class ReviewServiceImpl implements IReviewService {
         return ReviewPageVO.builder()
                 .total(total)
                 .avgRating(avgRating)
+                .records(records)
+                .build();
+    }
+
+    @Override
+    public PageResult<ReviewItemVO> getMyReviews(String token, Integer page, Integer size) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        LambdaQueryWrapper<Review> wrapper = Wrappers.<Review>lambdaQuery()
+                .eq(Review::getUserId, userId)
+                .orderByDesc(Review::getCreateTime);
+
+        long total = reviewMapper.selectCount(wrapper);
+        long pages = (total + size - 1) / size;
+        int offset = (page - 1) * size;
+        wrapper.last("LIMIT " + offset + "," + size);
+
+        List<Review> reviews = reviewMapper.selectList(wrapper);
+
+        User user = userMapper.selectById(userId);
+        String nickname = user != null ? user.getNickname() : "匿名用户";
+        String avatar = user != null ? user.getAvatar() : null;
+
+        List<ReviewItemVO> records = reviews.stream().map(r -> ReviewItemVO.builder()
+                .reviewId(r.getId())
+                .userId(r.getUserId())
+                .nickname(nickname)
+                .avatar(avatar)
+                .rating(r.getRating())
+                .content(r.getContent())
+                .photos(parseJsonList(r.getPhotos()))
+                .createTime(r.getCreateTime())
+                .build()).collect(Collectors.toList());
+
+        return PageResult.<ReviewItemVO>builder()
+                .total(total)
+                .pages(pages)
                 .records(records)
                 .build();
     }

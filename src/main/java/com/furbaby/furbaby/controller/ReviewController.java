@@ -3,6 +3,8 @@ package com.furbaby.furbaby.controller;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IReviewService;
+import com.furbaby.furbaby.vo.PageResult;
+import com.furbaby.furbaby.vo.ReviewItemVO;
 import com.furbaby.furbaby.vo.ReviewPageVO;
 import com.furbaby.furbaby.vo.ReviewVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,6 +44,16 @@ public class ReviewController {
                                                 @RequestParam(defaultValue = "1") Integer page,
                                                 @RequestParam(defaultValue = "10") Integer size) {
         ReviewPageVO result = reviewService.getShopReviews(shopId, page, size);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "我的评价", description = "分页查询当前用户的所有评价记录")
+    @GetMapping("/my-reviews")
+    public Result<PageResult<ReviewItemVO>> getMyReviews(@RequestHeader("Authorization") String authHeader,
+                                                           @RequestParam(defaultValue = "1") Integer page,
+                                                           @RequestParam(defaultValue = "10") Integer size) {
+        String token = authHeader.replace("Bearer ", "");
+        PageResult<ReviewItemVO> result = reviewService.getMyReviews(token, page, size);
         return Result.success(result);
     }
 }
