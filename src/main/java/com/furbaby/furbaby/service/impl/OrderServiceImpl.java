@@ -10,7 +10,6 @@ import com.furbaby.furbaby.entity.Pet;
 import com.furbaby.furbaby.entity.Shop;
 import com.furbaby.furbaby.entity.ShopSchedule;
 import com.furbaby.furbaby.enums.OrderStatus;
-import com.furbaby.furbaby.enums.ShopStatus;
 import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.mapper.OrderMapper;
 import com.furbaby.furbaby.mapper.PetMapper;
@@ -57,8 +56,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         if (shop == null) {
             throw new NoRegisterException("商家不存在");
         }
-        if (shop.getStatus() != ShopStatus.approved) {
-            throw new NoRegisterException("商家暂未通过审核");
+        if (!"open".equals(shop.getBizStatus())) {
+            throw new NoRegisterException("商家已休息，暂无法预约");
         }
 
         Pet pet = petMapper.selectOne(Wrappers.<Pet>lambdaQuery().eq(Pet::getId, dto.getPetId()));

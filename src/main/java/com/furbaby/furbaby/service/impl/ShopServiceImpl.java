@@ -60,8 +60,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Override
     public PageResult<ShopVO> listShops(String keyword, Integer page, Integer size, String sort) {
-        LambdaQueryWrapper<Shop> wrapper = Wrappers.<Shop>lambdaQuery()
-                .eq(Shop::getStatus, com.furbaby.furbaby.enums.ShopStatus.approved);
+        LambdaQueryWrapper<Shop> wrapper = Wrappers.<Shop>lambdaQuery();
 
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w
@@ -224,7 +223,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
             return ShopRegisterVO.builder()
                     .shopId(shop.getId())
-                    .status(shop.getStatus().name())
+                    .status(shop.getBizStatus())
                     .build();
         } catch (Exception e) {
             throw new RuntimeException("商家注册失败", e);

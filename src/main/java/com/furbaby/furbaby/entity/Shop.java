@@ -2,7 +2,6 @@ package com.furbaby.furbaby.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.furbaby.furbaby.enums.ShopStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import lombok.AllArgsConstructor;
@@ -60,11 +59,7 @@ public class Shop {
     private String notice;
 
     @Builder.Default
-    @Schema(description = "状态")
-    private ShopStatus status = ShopStatus.pending;
-
-    @Builder.Default
-    @Schema(description = "营业状态")
+    @Schema(description = "营业状态: open=营业中, closed=休息中")
     private String bizStatus = "open";
 
     @Schema(description = "创建时间")

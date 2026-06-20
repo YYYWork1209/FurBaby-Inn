@@ -52,13 +52,11 @@ CREATE TABLE `shop` (
     `description`   TEXT            DEFAULT NULL             COMMENT '商家描述',
     `services`      JSON            DEFAULT NULL             COMMENT '服务项目列表',
     `notice`        TEXT            DEFAULT NULL             COMMENT '入住须知',
-    `status`        ENUM('pending','approved','rejected','disabled') DEFAULT 'pending' COMMENT '审核状态',
     `biz_status`    VARCHAR(20)     NOT NULL DEFAULT 'open'         COMMENT '营业状态: open=营业中, closed=休息中',
     `create_time`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
-    KEY `idx_status` (`status`),
     KEY `idx_rating` (`rating`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商家表';
 

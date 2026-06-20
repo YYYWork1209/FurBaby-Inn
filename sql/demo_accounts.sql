@@ -83,7 +83,7 @@ SET @s6 = LAST_INSERT_ID();
 -- ============================================
 
 -- 商家1: 老张宠物寄养中心（北京）— 体验账号的店铺
-INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, status, create_time, update_time) VALUES
+INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, create_time, update_time) VALUES
 (@s1, '老张宠物寄养中心',
  'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-01.jpg',
  JSON_ARRAY('https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-01-a.jpg', 'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-01-b.jpg'),
@@ -94,11 +94,11 @@ INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, p
  '老张宠物寄养中心位于海淀区核心地段，拥有800平米室内外活动空间。老张本人养宠20年，对猫狗习性了如指掌。店内配备24小时监控和恒温系统，每日定时遛弯和健康检查，让您的毛孩子享受家庭般的温暖。',
  JSON_ARRAY('宠物寄养', '宠物美容', '健康体检', '上门接送', '在线监控'),
  '1. 请提前24小时预约\n2. 宠物需持有有效疫苗证明\n3. 接送服务5公里内免费\n4. 退房时间为离店日14:00前',
- 'open', 'approved', NOW(), NOW());
+ 'open', NOW(), NOW());
 SET @shop1 = LAST_INSERT_ID();
 
 -- 商家2: 喵不可言猫咪主题旅馆（上海）
-INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, status, create_time, update_time) VALUES
+INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, create_time, update_time) VALUES
 (@s2, '喵不可言猫咪主题旅馆',
  'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-02.jpg',
  JSON_ARRAY('https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-02-a.jpg', 'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-02-b.jpg'),
@@ -109,11 +109,11 @@ INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, p
  '喵不可言是一家只接待猫咪的高端寄养旅馆，每只猫咪拥有独立跃层套房，配备猫爬架、玩具和全景落地窗。专业猫咪行为顾问驻店，让每只猫咪享受尊贵假期。',
  JSON_ARRAY('猫咪寄养', '猫咪美容', '猫咪健康监测', '长毛猫专业护理'),
  '1. 仅接待猫咪\n2. 猫咪需完成基础免疫\n3. 长期寄养（7天以上）享9折',
- 'open', 'approved', NOW(), NOW());
+ 'open', NOW(), NOW());
 SET @shop2 = LAST_INSERT_ID();
 
 -- 商家3: 旺旺乐园宠物度假村（杭州）
-INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, status, create_time, update_time) VALUES
+INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, create_time, update_time) VALUES
 (@s3, '旺旺乐园宠物度假村',
  'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-03.jpg',
  JSON_ARRAY('https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-03-a.jpg', 'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-03-b.jpg'),
@@ -124,11 +124,11 @@ INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, p
  '旺旺乐园坐落在西湖景区旁，拥有2000平米户外草坪和宠物专用游泳池。寄养、训练一站式服务，让狗狗在大自然中尽情奔跑。',
  JSON_ARRAY('宠物寄养', '狗狗训练', '宠物游泳', '上门接送', '宠物摄影'),
  '1. 大型犬需佩戴口套入园\n2. 提供免费接送服务（10公里内）\n3. 训练课程需额外预约',
- 'open', 'approved', NOW(), NOW());
+ 'open', NOW(), NOW());
 SET @shop3 = LAST_INSERT_ID();
 
 -- 商家4: 毛茸茸宠物寄养小屋（成都）
-INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, status, create_time, update_time) VALUES
+INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, create_time, update_time) VALUES
 (@s4, '毛茸茸宠物寄养小屋',
  'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-04.jpg',
  JSON_ARRAY('https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-04-a.jpg', 'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-04-b.jpg'),
@@ -139,11 +139,11 @@ INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, p
  '毛茸茸推崇家庭式寄养理念，让宠物像在自己家一样自在。每个房间配有舒适的宠物床和恒温系统，每日提供新鲜手工宠物零食。适合中小型犬和猫咪。',
  JSON_ARRAY('宠物寄养', '手工零食', '日常护理', '宠物托管'),
  '1. 仅接待体重20kg以下的宠物\n2. 寄养超过3天赠送免费洗澡\n3. 节假日加收20%服务费',
- 'open', 'approved', NOW(), NOW());
+ 'open', NOW(), NOW());
 SET @shop4 = LAST_INSERT_ID();
 
 -- 商家5: 小狗当家寄养训练中心（深圳）
-INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, status, create_time, update_time) VALUES
+INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, create_time, update_time) VALUES
 (@s5, '小狗当家寄养训练中心',
  'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-05.jpg',
  JSON_ARRAY('https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-05-a.jpg', 'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-05-b.jpg'),
@@ -154,11 +154,11 @@ INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, p
  '小狗当家由退役军犬训导师创办，将专业训练融入日常寄养。每只入住狗狗都会接受基础服从训练和行为评估，户外训练场占地3000平米。',
  JSON_ARRAY('宠物寄养', '服从训练', '行为矫正', '敏捷训练', '护卫训练'),
  '1. 训练课程需提前一周预约\n2. 寄养+训练套餐享8.5折\n3. 首次入住有2天适应期',
- 'open', 'approved', NOW(), NOW());
+ 'open', NOW(), NOW());
 SET @shop5 = LAST_INSERT_ID();
 
 -- 商家6: 爱宠屋24h宠物酒店（广州）
-INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, status, create_time, update_time) VALUES
+INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice, biz_status, create_time, update_time) VALUES
 (@s6, '爱宠屋24h宠物酒店',
  'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-06.jpg',
  JSON_ARRAY('https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-06-a.jpg', 'https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/customer/shop-06-b.jpg'),
@@ -169,7 +169,7 @@ INSERT INTO shop (user_id, name, avatar, photos, rating, price, tags, address, p
  '爱宠屋是华南地区首家24小时宠物酒店，提供全天候寄养和医护服务。每个房间配备高清摄像头，主人可随时查看爱宠动态。店内配有宠物医院，突发状况可立即就医。',
  JSON_ARRAY('宠物寄养', '宠物医疗', '24小时看护', '在线监控', '宠物SPA'),
  '1. 24小时随时办理入住/退房\n2. 医疗费用按实际项目收取\n3. 在线监控服务免费提供',
- 'open', 'approved', NOW(), NOW());
+ 'open', NOW(), NOW());
 SET @shop6 = LAST_INSERT_ID();
 
 -- ============================================
