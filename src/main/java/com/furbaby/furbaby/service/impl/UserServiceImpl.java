@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.furbaby.furbaby.dto.LoginDTO;
 import com.furbaby.furbaby.dto.RegisterDTO;
+import com.furbaby.furbaby.dto.UserUpdateDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.entity.Shop;
 import com.furbaby.furbaby.entity.User;
@@ -22,6 +23,8 @@ import com.furbaby.furbaby.vo.UserInfoVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 /**
  * <p>
@@ -101,5 +104,52 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         return registerVO;
+    }
+
+    @Override
+    public UserInfoVO getCurrentUserInfo(String token) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        User user = this.getOne(Wrappers.<User>lambdaQuery().eq(User::getId, userId));
+        if (user == null) {
+            throw new NoRegisterException("用户不存在");
+        }
+        UserInfoVO vo = new UserInfoVO();
+        BeanUtils.copyProperties(user, vo);
+        return vo;
+    }
+
+    @Override
+    public UserInfoVO updateCurrentUserInfo(String token, UserUpdateDTO updateDTO) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        User user = this.getOne(Wrappers.<User>lambdaQuery().eq(User::getId, userId));
+        if (user == null) {
+            throw new NoRegisterException("用户不存在");
+        }
+        if (updateDTO.getNickname() != null) {
+            user.setNickname(updateDTO.getNickname());
+        }
+        if (updateDTO.getAvatar() != null) {
+            user.setAvatar(updateDTO.getAvatar());
+        }
+        if (updateDTO.getEmail() != null) {
+            user.setEmail(updateDTO.getEmail());
+        }
+        user.setUpdateTime(LocalDateTime.now());
+        this.updateById(user);
+
+        UserInfoVO vo = new UserInfoVO();
+        BeanUtils.copyProperties(user, vo);
+        return vo;
+    }
+
+    @Override
+    public UserInfoVO getUserInfoById(Long userId) {
+        User user = this.getOne(Wrappers.<User>lambdaQuery().eq(User::getId, userId));
+        if (user == null) {
+            throw new NoRegisterException("用户不存在");
+        }
+        UserInfoVO vo = new UserInfoVO();
+        BeanUtils.copyProperties(user, vo);
+        return vo;
     }
 }
