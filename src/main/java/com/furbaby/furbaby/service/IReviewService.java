@@ -8,6 +8,8 @@ import com.furbaby.furbaby.vo.ReviewPageVO;
 import com.furbaby.furbaby.vo.ReviewVO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 public interface IReviewService {
 
     ReviewVO submitReview(String token, ReviewSubmitDTO submitDTO);
@@ -17,4 +19,6 @@ public interface IReviewService {
     PageResult<ReviewItemVO> getMyReviews(String token, Integer page, Integer size);
 
     BoardingPhotoVO uploadPhoto(String token, Long orderId, MultipartFile file);
+
+    List<BoardingPhotoVO> getPhotos(Long orderId);
 }

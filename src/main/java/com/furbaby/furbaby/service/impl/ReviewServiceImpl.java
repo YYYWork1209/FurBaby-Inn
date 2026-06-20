@@ -209,6 +209,21 @@ public class ReviewServiceImpl implements IReviewService {
                 .build();
     }
 
+    @Override
+    public List<BoardingPhotoVO> getPhotos(Long orderId) {
+        List<BoardingPhoto> photos = boardingPhotoMapper.selectList(
+                Wrappers.<BoardingPhoto>lambdaQuery()
+                        .eq(BoardingPhoto::getOrderId, orderId)
+                        .orderByDesc(BoardingPhoto::getUploadTime));
+
+        return photos.stream().map(p -> BoardingPhotoVO.builder()
+                .photoId(p.getId())
+                .url(p.getUrl())
+                .uploadTime(p.getUploadTime())
+                .description(p.getDescription())
+                .build()).collect(Collectors.toList());
+    }
+
     private List<String> parseJsonList(String json) {
         if (json == null || json.isBlank()) {
             return Collections.emptyList();

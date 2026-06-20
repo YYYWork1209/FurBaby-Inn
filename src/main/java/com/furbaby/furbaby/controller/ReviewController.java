@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -66,6 +67,13 @@ public class ReviewController {
                                                 @RequestParam("file") MultipartFile file) {
         String token = authHeader.replace("Bearer ", "");
         BoardingPhotoVO result = reviewService.uploadPhoto(token, orderId, file);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "获取寄养照片", description = "根据订单ID获取寄养期间上传的所有照片")
+    @GetMapping("/photos/{orderId}")
+    public Result<List<BoardingPhotoVO>> getPhotos(@PathVariable Long orderId) {
+        List<BoardingPhotoVO> result = reviewService.getPhotos(orderId);
         return Result.success(result);
     }
 }
