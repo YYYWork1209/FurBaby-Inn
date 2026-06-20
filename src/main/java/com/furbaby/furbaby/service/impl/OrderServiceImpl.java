@@ -18,6 +18,7 @@ import com.furbaby.furbaby.mapper.ShopScheduleMapper;
 import com.furbaby.furbaby.service.IOrderService;
 import com.furbaby.furbaby.utils.JWTUtils;
 import com.furbaby.furbaby.vo.OrderCreateVO;
+import com.furbaby.furbaby.vo.OrderDetailVO;
 import com.furbaby.furbaby.vo.OrderItemVO;
 import com.furbaby.furbaby.vo.PageResult;
 import lombok.RequiredArgsConstructor;
@@ -171,6 +172,34 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 .total(total)
                 .pages(pages)
                 .records(records)
+                .build();
+    }
+
+    @Override
+    public OrderDetailVO getOrderDetail(Long id) {
+        Order order = this.getOne(Wrappers.<Order>lambdaQuery().eq(Order::getId, id));
+        if (order == null) {
+            throw new NoRegisterException("订单不存在");
+        }
+
+        Shop shop = shopMapper.selectById(order.getShopId());
+        Pet pet = petMapper.selectById(order.getPetId());
+
+        return OrderDetailVO.builder()
+                .orderId(order.getId())
+                .orderNo(order.getOrderNo())
+                .shopName(shop != null ? shop.getName() : "未知商家")
+                .petName(pet != null ? pet.getName() : "未知宠物")
+                .startDate(order.getStartDate())
+                .endDate(order.getEndDate())
+                .status(order.getStatus().name())
+                .amount(order.getAmount())
+                .createTime(order.getCreateTime())
+                .shopId(order.getShopId())
+                .petId(order.getPetId())
+                .remark(order.getRemark())
+                .payTime(order.getPayTime())
+                .cancelTime(order.getCancelTime())
                 .build();
     }
 }

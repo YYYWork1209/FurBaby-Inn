@@ -4,6 +4,7 @@ import com.furbaby.furbaby.dto.OrderCreateDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IOrderService;
 import com.furbaby.furbaby.vo.OrderCreateVO;
+import com.furbaby.furbaby.vo.OrderDetailVO;
 import com.furbaby.furbaby.vo.OrderItemVO;
 import com.furbaby.furbaby.vo.PageResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -45,5 +47,12 @@ public class OrderController {
         String token = authHeader.replace("Bearer ", "");
         PageResult<OrderItemVO> result = orderService.listOrders(token, status, page, size);
         return Result.success(result);
+    }
+
+    @Operation(summary = "订单详情", description = "根据订单ID获取订单完整详情")
+    @GetMapping("/detail/{id}")
+    public Result<OrderDetailVO> getOrderDetail(@PathVariable Long id) {
+        OrderDetailVO detail = orderService.getOrderDetail(id);
+        return Result.success(detail);
     }
 }
