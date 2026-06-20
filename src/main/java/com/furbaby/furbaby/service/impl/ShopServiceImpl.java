@@ -240,6 +240,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 .tags(parseJsonList(shop.getTags()))
                 .address(shop.getAddress())
                 .distance(null)
+                .status(shop.getBizStatus())
                 .build();
     }
 

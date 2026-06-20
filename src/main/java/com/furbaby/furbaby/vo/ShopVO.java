@@ -39,4 +39,7 @@ public class ShopVO {
 
     @Schema(description = "距离")
     private Double distance;
+
+    @Schema(description = "营业状态: open=营业中, closed=休息中")
+    private String status;
 }
