@@ -3,15 +3,19 @@ package com.furbaby.furbaby.controller;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IReviewService;
+import com.furbaby.furbaby.vo.ReviewPageVO;
 import com.furbaby.furbaby.vo.ReviewVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -29,6 +33,15 @@ public class ReviewController {
                                           @RequestBody ReviewSubmitDTO submitDTO) {
         String token = authHeader.replace("Bearer ", "");
         ReviewVO result = reviewService.submitReview(token, submitDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "商家评价列表", description = "分页查询指定商家的评价列表及平均评分")
+    @GetMapping("/list/{shopId}")
+    public Result<ReviewPageVO> getShopReviews(@PathVariable Long shopId,
+                                                @RequestParam(defaultValue = "1") Integer page,
+                                                @RequestParam(defaultValue = "10") Integer size) {
+        ReviewPageVO result = reviewService.getShopReviews(shopId, page, size);
         return Result.success(result);
     }
 }

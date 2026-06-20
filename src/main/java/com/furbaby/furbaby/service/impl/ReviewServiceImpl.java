@@ -1,25 +1,34 @@
 package com.furbaby.furbaby.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.Order;
 import com.furbaby.furbaby.entity.Review;
 import com.furbaby.furbaby.entity.Shop;
+import com.furbaby.furbaby.entity.User;
 import com.furbaby.furbaby.enums.OrderStatus;
 import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.mapper.OrderMapper;
 import com.furbaby.furbaby.mapper.ReviewMapper;
 import com.furbaby.furbaby.mapper.ShopMapper;
+import com.furbaby.furbaby.mapper.UserMapper;
 import com.furbaby.furbaby.service.IReviewService;
 import com.furbaby.furbaby.utils.JWTUtils;
+import com.furbaby.furbaby.vo.ReviewItemVO;
+import com.furbaby.furbaby.vo.ReviewPageVO;
 import com.furbaby.furbaby.vo.ReviewVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -29,6 +38,7 @@ public class ReviewServiceImpl implements IReviewService {
     private final ReviewMapper reviewMapper;
     private final OrderMapper orderMapper;
     private final ShopMapper shopMapper;
+    private final UserMapper userMapper;
     private final JWTUtils jwtUtils;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -81,6 +91,58 @@ public class ReviewServiceImpl implements IReviewService {
                 .content(review.getContent())
                 .createTime(review.getCreateTime())
                 .build();
+    }
+
+    @Override
+    public ReviewPageVO getShopReviews(Long shopId, Integer page, Integer size) {
+        LambdaQueryWrapper<Review> wrapper = Wrappers.<Review>lambdaQuery()
+                .eq(Review::getShopId, shopId)
+                .orderByDesc(Review::getCreateTime);
+
+        long total = reviewMapper.selectCount(wrapper);
+        int offset = (page - 1) * size;
+        wrapper.last("LIMIT " + offset + "," + size);
+
+        List<Review> reviews = reviewMapper.selectList(wrapper);
+
+        Double avgRating = reviewMapper.selectList(
+                Wrappers.<Review>lambdaQuery().eq(Review::getShopId, shopId))
+                .stream()
+                .mapToInt(Review::getRating)
+                .average()
+                .orElse(0.0);
+        avgRating = Math.round(avgRating * 10.0) / 10.0;
+
+        List<ReviewItemVO> records = reviews.stream().map(r -> {
+            User user = userMapper.selectById(r.getUserId());
+            return ReviewItemVO.builder()
+                    .reviewId(r.getId())
+                    .userId(r.getUserId())
+                    .nickname(user != null ? user.getNickname() : "匿名用户")
+                    .avatar(user != null ? user.getAvatar() : null)
+                    .rating(r.getRating())
+                    .content(r.getContent())
+                    .photos(parseJsonList(r.getPhotos()))
+                    .createTime(r.getCreateTime())
+                    .build();
+        }).collect(Collectors.toList());
+
+        return ReviewPageVO.builder()
+                .total(total)
+                .avgRating(avgRating)
+                .records(records)
+                .build();
+    }
+
+    private List<String> parseJsonList(String json) {
+        if (json == null || json.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     private void recalcShopRating(Long shopId) {
