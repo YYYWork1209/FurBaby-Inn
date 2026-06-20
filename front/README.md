@@ -179,7 +179,7 @@ npm run preview
 | GET | `/shop/my/dashboard` | 商家后台统计 | — | `DashboardStats` |
 | GET | `/shop/my/orders` | 商家订单列表 | `?page=&size=&status=` | `{ total: number, pages: number, records: OrderItem[] }` |
 
-**Shop 对象**: `{ id, name, avatar, rating, price, tags, address, distance }`  
+**Shop 对象**: `{ id, name, avatar, rating, price, tags, address, distance, status: 'open' | 'closed' }`  
 **ShopDetail 对象**: `{ id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice }`  
 **MerchantShop 对象**: `{ shopId: number, name: string, avatar: string, phone: string, address: string, description: string, tags: string[], services: string[], notice: string, rating: number, price: number, status: 'open' | 'closed' }`  
 **Schedule 对象**: `{ date: string, available: number, price: number }`  
