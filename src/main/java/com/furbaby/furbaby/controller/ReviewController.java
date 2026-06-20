@@ -3,6 +3,7 @@ package com.furbaby.furbaby.controller;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IReviewService;
+import com.furbaby.furbaby.vo.BoardingPhotoVO;
 import com.furbaby.furbaby.vo.PageResult;
 import com.furbaby.furbaby.vo.ReviewItemVO;
 import com.furbaby.furbaby.vo.ReviewPageVO;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Tag(name = "评价管理")
@@ -54,6 +56,16 @@ public class ReviewController {
                                                            @RequestParam(defaultValue = "10") Integer size) {
         String token = authHeader.replace("Bearer ", "");
         PageResult<ReviewItemVO> result = reviewService.getMyReviews(token, page, size);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "上传寄养照片", description = "为指定订单上传寄养期间的照片")
+    @PostMapping("/upload-photo")
+    public Result<BoardingPhotoVO> uploadPhoto(@RequestHeader("Authorization") String authHeader,
+                                                @RequestParam Long orderId,
+                                                @RequestParam("file") MultipartFile file) {
+        String token = authHeader.replace("Bearer ", "");
+        BoardingPhotoVO result = reviewService.uploadPhoto(token, orderId, file);
         return Result.success(result);
     }
 }

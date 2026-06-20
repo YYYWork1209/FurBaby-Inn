@@ -6,18 +6,21 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
+import com.furbaby.furbaby.entity.BoardingPhoto;
 import com.furbaby.furbaby.entity.Order;
 import com.furbaby.furbaby.entity.Review;
 import com.furbaby.furbaby.entity.Shop;
 import com.furbaby.furbaby.entity.User;
 import com.furbaby.furbaby.enums.OrderStatus;
 import com.furbaby.furbaby.exception.NoRegisterException;
+import com.furbaby.furbaby.mapper.BoardingPhotoMapper;
 import com.furbaby.furbaby.mapper.OrderMapper;
 import com.furbaby.furbaby.mapper.ReviewMapper;
 import com.furbaby.furbaby.mapper.ShopMapper;
 import com.furbaby.furbaby.mapper.UserMapper;
 import com.furbaby.furbaby.service.IReviewService;
 import com.furbaby.furbaby.utils.JWTUtils;
+import com.furbaby.furbaby.vo.BoardingPhotoVO;
 import com.furbaby.furbaby.vo.PageResult;
 import com.furbaby.furbaby.vo.ReviewItemVO;
 import com.furbaby.furbaby.vo.ReviewPageVO;
@@ -25,10 +28,12 @@ import com.furbaby.furbaby.vo.ReviewVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,6 +45,7 @@ public class ReviewServiceImpl implements IReviewService {
     private final OrderMapper orderMapper;
     private final ShopMapper shopMapper;
     private final UserMapper userMapper;
+    private final BoardingPhotoMapper boardingPhotoMapper;
     private final JWTUtils jwtUtils;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -169,6 +175,37 @@ public class ReviewServiceImpl implements IReviewService {
                 .total(total)
                 .pages(pages)
                 .records(records)
+                .build();
+    }
+
+    @Override
+    public BoardingPhotoVO uploadPhoto(String token, Long orderId, MultipartFile file) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        Order order = orderMapper.selectOne(Wrappers.<Order>lambdaQuery().eq(Order::getId, orderId));
+        if (order == null) {
+            throw new NoRegisterException("订单不存在");
+        }
+        if (!order.getUserId().equals(userId)) {
+            throw new NoRegisterException("无权操作他人订单");
+        }
+
+        String url = "https://furbaby-inn.oss-cn-hangzhou.aliyuncs.com/boarding/"
+                + UUID.randomUUID().toString().substring(0, 8) + ".jpg";
+
+        BoardingPhoto photo = BoardingPhoto.builder()
+                .orderId(orderId)
+                .userId(userId)
+                .url(url)
+                .uploadTime(LocalDateTime.now())
+                .build();
+        boardingPhotoMapper.insert(photo);
+
+        return BoardingPhotoVO.builder()
+                .photoId(photo.getId())
+                .url(photo.getUrl())
+                .uploadTime(photo.getUploadTime())
+                .description(photo.getDescription())
                 .build();
     }
 
