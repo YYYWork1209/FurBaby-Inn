@@ -3,6 +3,7 @@ package com.furbaby.furbaby.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.furbaby.furbaby.dto.OrderCancelDTO;
 import com.furbaby.furbaby.dto.OrderCreateDTO;
 import com.furbaby.furbaby.entity.Order;
 import com.furbaby.furbaby.entity.Pet;
@@ -201,5 +202,42 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 .payTime(order.getPayTime())
                 .cancelTime(order.getCancelTime())
                 .build();
+    }
+
+    @Override
+    public Map<String, String> cancelOrder(String token, Long id, OrderCancelDTO cancelDTO) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        Order order = this.getOne(Wrappers.<Order>lambdaQuery().eq(Order::getId, id));
+        if (order == null) {
+            throw new NoRegisterException("订单不存在");
+        }
+        if (!order.getUserId().equals(userId)) {
+            throw new NoRegisterException("无权操作他人订单");
+        }
+
+        OrderStatus status = order.getStatus();
+        if (status != OrderStatus.pending && status != OrderStatus.paid) {
+            throw new NoRegisterException("当前订单状态不可取消");
+        }
+
+        order.setStatus(OrderStatus.cancelled);
+        order.setCancelTime(LocalDateTime.now());
+        order.setCancelReason(cancelDTO.getReason());
+        order.setUpdateTime(LocalDateTime.now());
+        this.updateById(order);
+
+        List<ShopSchedule> schedules = shopScheduleMapper.selectList(
+                Wrappers.<ShopSchedule>lambdaQuery()
+                        .eq(ShopSchedule::getShopId, order.getShopId())
+                        .ge(ShopSchedule::getDate, order.getStartDate())
+                        .lt(ShopSchedule::getDate, order.getEndDate()));
+        for (ShopSchedule s : schedules) {
+            s.setAvailable(s.getAvailable() + 1);
+            s.setUpdateTime(LocalDateTime.now());
+            shopScheduleMapper.updateById(s);
+        }
+
+        return Map.of("success", "true", "status", "cancelled");
     }
 }

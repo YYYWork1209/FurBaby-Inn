@@ -1,5 +1,6 @@
 package com.furbaby.furbaby.controller;
 
+import com.furbaby.furbaby.dto.OrderCancelDTO;
 import com.furbaby.furbaby.dto.OrderCreateDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IOrderService;
@@ -14,11 +15,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @Slf4j
 @Tag(name = "预约管理")
@@ -54,5 +58,18 @@ public class OrderController {
     public Result<OrderDetailVO> getOrderDetail(@PathVariable Long id) {
         OrderDetailVO detail = orderService.getOrderDetail(id);
         return Result.success(detail);
+    }
+
+    @Operation(summary = "取消预约", description = "取消指定订单，仅待支付和已支付状态可取消，同时恢复档期库存")
+    @PutMapping("/cancel/{id}")
+    public Result<Map<String, String>> cancelOrder(@RequestHeader("Authorization") String authHeader,
+                                                    @PathVariable Long id,
+                                                    @RequestBody(required = false) OrderCancelDTO cancelDTO) {
+        String token = authHeader.replace("Bearer ", "");
+        if (cancelDTO == null) {
+            cancelDTO = new OrderCancelDTO();
+        }
+        Map<String, String> result = orderService.cancelOrder(token, id, cancelDTO);
+        return Result.success(result);
     }
 }
