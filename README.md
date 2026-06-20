@@ -193,6 +193,25 @@ pending ─┤                 │
 
 下单减库存、取消还库存、退款还库存均通过 `shopScheduleMapper.updateById()` 逐日操作，保证不会超卖。档期按天粒度管理，每日独立 available 计数。
 
+### 订单状态自动流转（定时任务）
+
+以下两个状态转换不由用户手动触发，而是通过 **Spring `@Scheduled` 定时任务**在每日 0:00 自动扫描执行：
+
+| 转换 | 触发条件 | Cron |
+|------|----------|------|
+| `paid` → `boarding` | `start_date <= 今天` 且当前状态为 paid | `0 0 0 * * ?` |
+| `boarding` → `completed` | `end_date < 今天` 且当前状态为 boarding | `0 0 0 * * ?` |
+
+**实现文件**: `scheduler/OrderStatusScheduler.java`
+
+**原理（企业常用方式）**：
+
+1. **`@EnableScheduling`** 在主类开启 Spring 定时任务支持
+2. **`@Scheduled(cron = "0 0 0 * * ?")`** 定义每日 0:00 执行，Spring 在 `TaskScheduler` 线程池中触发
+3. **扫描逻辑**：用 MyBatis-Plus `Wrappers.lambdaQuery()` 条件查询匹配的订单，逐笔更新状态并附加日志
+4. **幂等性**：通过 `eq(Order::getStatus, 预期状态)` 在 WHERE 条件中锁定当前状态，即便任务重复执行也不会误改
+5. **分布式扩展**：多实例部署时需加分布式锁（如 Redis SETNX）避免重复执行，或升级为 XXL-JOB / Elastic-Job 等分布式调度框架统一管理
+
 ---
 
 ## 五、支付服务 (`/api/payment`)
