@@ -333,4 +333,3 @@ Controller 层:
 - `Notification.isRead` 字段在 Entity 中是 `isRead`，VO 中对应 `read`（符合前端命名习惯）
 - 上传照片使用模拟 OSS URL，生产环境需对接真实 OSS 服务
 - 支付服务为模拟实现，生产需对接微信/支付宝真实支付回调
-- 各 feature 分支尚未合并到 main，当前 main 分支仅包含初始表结构和基础用户模块
