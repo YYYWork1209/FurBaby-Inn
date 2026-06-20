@@ -73,4 +73,16 @@ public class NotifyServiceImpl implements INotifyService {
 
         return Map.of("success", true);
     }
+
+    @Override
+    public Map<String, Integer> getUnreadCount(String token) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        long count = notificationMapper.selectCount(
+                Wrappers.<Notification>lambdaQuery()
+                        .eq(Notification::getUserId, userId)
+                        .eq(Notification::getIsRead, false));
+
+        return Map.of("count", (int) count);
+    }
 }

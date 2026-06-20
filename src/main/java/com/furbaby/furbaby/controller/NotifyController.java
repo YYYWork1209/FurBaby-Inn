@@ -45,4 +45,12 @@ public class NotifyController {
         Map<String, Boolean> result = notifyService.markAsRead(token, id);
         return Result.success(result);
     }
+
+    @Operation(summary = "未读数量", description = "获取当前用户的未读通知数量")
+    @GetMapping("/unread-count")
+    public Result<Map<String, Integer>> getUnreadCount(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        Map<String, Integer> result = notifyService.getUnreadCount(token);
+        return Result.success(result);
+    }
 }
