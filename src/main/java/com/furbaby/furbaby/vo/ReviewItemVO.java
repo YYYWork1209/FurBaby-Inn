@@ -37,6 +37,12 @@ public class ReviewItemVO {
     @Schema(description = "照片列表")
     private List<String> photos;
 
+    @Schema(description = "商家回复")
+    private String reply;
+
+    @Schema(description = "回复时间")
+    private LocalDateTime replyTime;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 }

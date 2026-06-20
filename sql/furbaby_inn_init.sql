@@ -200,6 +200,8 @@ CREATE TABLE `review` (
     `rating`        TINYINT         NOT NULL                 COMMENT '评分(1-5)',
     `content`       TEXT            DEFAULT NULL             COMMENT '评价内容',
     `photos`        JSON            DEFAULT NULL             COMMENT '照片URL列表',
+    `reply`         VARCHAR(500)    DEFAULT NULL             COMMENT '商家回复',
+    `reply_time`    DATETIME        DEFAULT NULL             COMMENT '回复时间',
     `create_time`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_order_id` (`order_id`),

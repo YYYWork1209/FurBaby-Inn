@@ -1,5 +1,6 @@
 package com.furbaby.furbaby.controller;
 
+import com.furbaby.furbaby.dto.ReviewReplyDTO;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IReviewService;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
+import java.util.Map;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -74,6 +76,15 @@ public class ReviewController {
     @GetMapping("/photos/{orderId}")
     public Result<List<BoardingPhotoVO>> getPhotos(@PathVariable Long orderId) {
         List<BoardingPhotoVO> result = reviewService.getPhotos(orderId);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "商家回复评价", description = "商家对收到的评价进行回复，每条评价仅可回复一次")
+    @PostMapping("/reply")
+    public Result<Map<String, Object>> replyReview(@RequestHeader("Authorization") String authHeader,
+                                                    @RequestBody ReviewReplyDTO replyDTO) {
+        String token = authHeader.replace("Bearer ", "");
+        Map<String, Object> result = reviewService.replyReview(token, replyDTO);
         return Result.success(result);
     }
 }

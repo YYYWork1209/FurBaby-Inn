@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.furbaby.furbaby.dto.ReviewReplyDTO;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.BoardingPhoto;
 import com.furbaby.furbaby.entity.Order;
@@ -32,7 +33,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -130,6 +133,8 @@ public class ReviewServiceImpl implements IReviewService {
                     .rating(r.getRating())
                     .content(r.getContent())
                     .photos(parseJsonList(r.getPhotos()))
+                    .reply(r.getReply())
+                    .replyTime(r.getReplyTime())
                     .createTime(r.getCreateTime())
                     .build();
         }).collect(Collectors.toList());
@@ -168,6 +173,8 @@ public class ReviewServiceImpl implements IReviewService {
                 .rating(r.getRating())
                 .content(r.getContent())
                 .photos(parseJsonList(r.getPhotos()))
+                .reply(r.getReply())
+                .replyTime(r.getReplyTime())
                 .createTime(r.getCreateTime())
                 .build()).collect(Collectors.toList());
 
@@ -222,6 +229,35 @@ public class ReviewServiceImpl implements IReviewService {
                 .uploadTime(p.getUploadTime())
                 .description(p.getDescription())
                 .build()).collect(Collectors.toList());
+    }
+
+    @Override
+    public Map<String, Object> replyReview(String token, ReviewReplyDTO replyDTO) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        Review review = reviewMapper.selectById(replyDTO.getReviewId());
+        if (review == null) {
+            throw new NoRegisterException("评价不存在");
+        }
+
+        Shop shop = shopMapper.selectOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getId, review.getShopId()));
+        if (shop == null || !shop.getUserId().equals(userId)) {
+            throw new NoRegisterException("无权回复此评价，仅该商家的店主可回复");
+        }
+
+        if (review.getReply() != null) {
+            throw new NoRegisterException("该评价已回复，不可重复回复");
+        }
+
+        review.setReply(replyDTO.getContent());
+        review.setReplyTime(LocalDateTime.now());
+        reviewMapper.updateById(review);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("reviewId", review.getId());
+        result.put("reply", review.getReply());
+        result.put("replyTime", review.getReplyTime());
+        return result;
     }
 
     private List<String> parseJsonList(String json) {

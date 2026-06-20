@@ -39,6 +39,7 @@ furbaby-inn-front/
     │   ├── request.js              # Axios 实例 + 拦截器
     │   ├── user.js                 # 用户服务
     │   ├── shop.js                 # 商家服务
+    │   ├── merchant.js             # 商家管理端统计
     │   ├── pet.js                  # 宠物服务
     │   ├── order.js                # 预约服务
     │   ├── payment.js              # 支付服务
@@ -76,7 +77,12 @@ furbaby-inn-front/
         ├── OrderDetailView.vue     # 订单详情
         ├── PaymentView.vue         # 支付页
         ├── PhotoGalleryView.vue    # 寄养照片
-        └── ReviewView.vue          # 服务评价
+        ├── ReviewView.vue          # 服务评价
+        └── merchant/               # 商家管理端
+            ├── DashboardView.vue       # 后台首页
+            ├── OrderManagementView.vue # 订单管理
+            ├── ReviewManagementView.vue # 评价管理
+            └── ShopSettingsView.vue    # 店铺设置
 ```
 
 ## 快速开始
@@ -131,6 +137,12 @@ npm run preview
 | `/payment/:orderId` | 支付 | 支付确认 | 是 |
 | `/photos/:orderId` | 寄养照片 | 查看寄养期间照片 | 是 |
 | `/review/:orderId` | 服务评价 | 提交评价 | 是 |
+| `/merchant` | 商家后台 | Dashboard 统计 + 快捷入口 | 是(商家) |
+| `/merchant/orders` | 订单管理 | 管理店铺订单 | 是(商家) |
+| `/merchant/reviews` | 评价管理 | 查看和回复评价 | 是(商家) |
+| `/merchant/settings` | 店铺设置 | 营业状态 + 信息编辑 | 是(商家) |
+
+> 商家路由同时受 `requiresAuth` 和 `role: 'shop'` 双重保护，宠物主角色无法访问。
 
 ---
 
@@ -217,7 +229,7 @@ cancelled  refunding → refunded
 | `boarding` | 寄养中 | 查看照片、申请退款 |
 | `completed` | 已完成 | 评价 |
 | `cancelled` | 已取消 | — |
-| `refunding` | 退款中 | — |
+| `refunding` | 退款中 | 商家确认退款 |
 | `refunded` | 已退款 | — |
 
 ## 5. 支付服务 payment-service (`/api/payment`)
@@ -237,8 +249,9 @@ cancelled  refunding → refunded
 | GET | `/review/my-reviews` | 我的评价 | `?page=&size=` | `{ total, records: ReviewItem[] }` |
 | POST | `/review/upload-photo` | 上传寄养照片 | `FormData { orderId, file }` | `{ photoId: number, url: string }` |
 | GET | `/review/photos/:orderId` | 获取寄养照片 | — | `BoardingPhoto[]` |
+| POST | `/review/reply` | 商家回复评价 | `{ reviewId: number, content: string }` | `{ reviewId: number, reply: string, replyTime: string }` |
 
-**ReviewItem 对象**: `{ reviewId, userId, nickname, avatar, rating, content, photos, createTime }`  
+**ReviewItem 对象**: `{ reviewId, userId, nickname, avatar, rating, content, photos, createTime, reply?: string, replyTime?: string }`  
 **BoardingPhoto 对象**: `{ photoId, url, uploadTime, description? }`
 
 ## 7. 通知服务 notify-service (`/api/notify`)
