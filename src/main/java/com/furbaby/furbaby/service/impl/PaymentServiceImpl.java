@@ -60,7 +60,8 @@ public class PaymentServiceImpl implements IPaymentService {
                 .userId(userId)
                 .payMethod(createDTO.getPayMethod())
                 .amount(order.getAmount())
-                .status(PaymentStatus.pending)
+                .status(PaymentStatus.success)
+                .payTime(LocalDateTime.now())
                 .expireTime(LocalDateTime.now().plusMinutes(30))
                 .createTime(LocalDateTime.now())
                 .updateTime(LocalDateTime.now())
@@ -73,6 +74,11 @@ public class PaymentServiceImpl implements IPaymentService {
         }
 
         paymentMapper.insert(payment);
+
+        order.setStatus(OrderStatus.paid);
+        order.setPayTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
+        orderMapper.updateById(order);
 
         return PaymentCreateVO.builder()
                 .paymentId(payment.getId())
