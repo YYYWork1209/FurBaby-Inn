@@ -51,4 +51,7 @@ public class ShopDetailVO {
 
     @Schema(description = "入住须知")
     private String notice;
+
+    @Schema(description = "营业状态: open=营业中, closed=休息中")
+    private String status;
 }

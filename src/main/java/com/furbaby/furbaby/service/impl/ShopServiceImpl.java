@@ -258,6 +258,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 .description(shop.getDescription())
                 .services(parseJsonList(shop.getServices()))
                 .notice(shop.getNotice())
+                .status(shop.getBizStatus())
                 .build();
     }
 
