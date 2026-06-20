@@ -1,5 +1,6 @@
 package com.furbaby.furbaby.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.furbaby.furbaby.dto.OrderCreateDTO;
@@ -17,6 +18,8 @@ import com.furbaby.furbaby.mapper.ShopScheduleMapper;
 import com.furbaby.furbaby.service.IOrderService;
 import com.furbaby.furbaby.utils.JWTUtils;
 import com.furbaby.furbaby.vo.OrderCreateVO;
+import com.furbaby.furbaby.vo.OrderItemVO;
+import com.furbaby.furbaby.vo.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -117,6 +121,56 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 .status(order.getStatus().name())
                 .amount(order.getAmount())
                 .createTime(order.getCreateTime())
+                .build();
+    }
+
+    @Override
+    public PageResult<OrderItemVO> listOrders(String token, String status, Integer page, Integer size) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        LambdaQueryWrapper<Order> wrapper = Wrappers.<Order>lambdaQuery()
+                .eq(Order::getUserId, userId);
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(Order::getStatus, OrderStatus.valueOf(status));
+        }
+        wrapper.orderByDesc(Order::getCreateTime);
+
+        long total = this.count(wrapper);
+        long pages = (total + size - 1) / size;
+        int offset = (page - 1) * size;
+        wrapper.last("LIMIT " + offset + "," + size);
+
+        List<Order> orders = this.list(wrapper);
+
+        Map<Long, String> shopNameCache = new HashMap<>();
+        Map<Long, String> petNameCache = new HashMap<>();
+
+        List<OrderItemVO> records = orders.stream().map(o -> {
+            String shopName = shopNameCache.computeIfAbsent(o.getShopId(), shopId -> {
+                Shop shop = shopMapper.selectById(shopId);
+                return shop != null ? shop.getName() : "未知商家";
+            });
+            String petName = petNameCache.computeIfAbsent(o.getPetId(), petId -> {
+                Pet pet = petMapper.selectById(petId);
+                return pet != null ? pet.getName() : "未知宠物";
+            });
+            return OrderItemVO.builder()
+                    .orderId(o.getId())
+                    .orderNo(o.getOrderNo())
+                    .shopName(shopName)
+                    .petName(petName)
+                    .startDate(o.getStartDate())
+                    .endDate(o.getEndDate())
+                    .status(o.getStatus().name())
+                    .amount(o.getAmount())
+                    .createTime(o.getCreateTime())
+                    .build();
+        }).collect(Collectors.toList());
+
+        return PageResult.<OrderItemVO>builder()
+                .total(total)
+                .pages(pages)
+                .records(records)
                 .build();
     }
 }
