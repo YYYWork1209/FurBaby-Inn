@@ -4,10 +4,13 @@ import com.furbaby.furbaby.dto.PaymentCreateDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IPaymentService;
 import com.furbaby.furbaby.vo.PaymentCreateVO;
+import com.furbaby.furbaby.vo.PaymentStatusVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -29,6 +32,13 @@ public class PaymentController {
                                                   @RequestBody PaymentCreateDTO createDTO) {
         String token = authHeader.replace("Bearer ", "");
         PaymentCreateVO result = paymentService.createPayment(token, createDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "查询支付状态", description = "根据支付单ID查询支付状态及支付时间")
+    @GetMapping("/status/{paymentId}")
+    public Result<PaymentStatusVO> getPaymentStatus(@PathVariable Long paymentId) {
+        PaymentStatusVO result = paymentService.getPaymentStatus(paymentId);
         return Result.success(result);
     }
 }

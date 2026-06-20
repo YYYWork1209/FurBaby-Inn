@@ -12,6 +12,7 @@ import com.furbaby.furbaby.mapper.PaymentMapper;
 import com.furbaby.furbaby.service.IPaymentService;
 import com.furbaby.furbaby.utils.JWTUtils;
 import com.furbaby.furbaby.vo.PaymentCreateVO;
+import com.furbaby.furbaby.vo.PaymentStatusVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -74,6 +75,19 @@ public class PaymentServiceImpl implements IPaymentService {
                 .qrCode(payment.getQrCode())
                 .payUrl(payment.getPayUrl())
                 .expireTime(payment.getExpireTime())
+                .build();
+    }
+
+    @Override
+    public PaymentStatusVO getPaymentStatus(Long paymentId) {
+        Payment payment = paymentMapper.selectOne(Wrappers.<Payment>lambdaQuery().eq(Payment::getId, paymentId));
+        if (payment == null) {
+            throw new NoRegisterException("支付单不存在");
+        }
+        return PaymentStatusVO.builder()
+                .paymentId(payment.getId())
+                .status(payment.getStatus().name())
+                .payTime(payment.getPayTime())
                 .build();
     }
 }
