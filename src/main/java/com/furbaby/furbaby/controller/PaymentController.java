@@ -11,9 +11,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,12 +46,22 @@ public class PaymentController {
         return Result.success(result);
     }
 
-    @Operation(summary = "申请退款", description = "为指定订单申请退款，仅已支付和寄养中状态可退款")
+    @Operation(summary = "申请退款", description = "为指定订单申请退款，订单主人或商家均可操作")
     @PostMapping("/refund")
     public Result<RefundVO> refund(@RequestHeader("Authorization") String authHeader,
                                     @RequestBody RefundDTO refundDTO) {
         String token = authHeader.replace("Bearer ", "");
         RefundVO result = paymentService.refund(token, refundDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "商家处理退款", description = "商家确认或拒绝退款申请，approve=同意退款并恢复档期，reject=拒绝退款恢复寄养")
+    @PutMapping("/refund/{refundId}/process")
+    public Result<Map<String, String>> processRefund(@RequestHeader("Authorization") String authHeader,
+                                                       @PathVariable Long refundId,
+                                                       @RequestBody Map<String, String> body) {
+        String token = authHeader.replace("Bearer ", "");
+        Map<String, String> result = paymentService.processRefund(token, refundId, body.get("action"));
         return Result.success(result);
     }
 }

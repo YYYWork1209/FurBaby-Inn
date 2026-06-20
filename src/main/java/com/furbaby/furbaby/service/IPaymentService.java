@@ -6,6 +6,8 @@ import com.furbaby.furbaby.vo.PaymentCreateVO;
 import com.furbaby.furbaby.vo.PaymentStatusVO;
 import com.furbaby.furbaby.vo.RefundVO;
 
+import java.util.Map;
+
 public interface IPaymentService {
 
     PaymentCreateVO createPayment(String token, PaymentCreateDTO createDTO);
@@ -13,4 +15,6 @@ public interface IPaymentService {
     PaymentStatusVO getPaymentStatus(Long paymentId);
 
     RefundVO refund(String token, RefundDTO refundDTO);
+
+    Map<String, String> processRefund(String token, Long refundId, String action);
 }
