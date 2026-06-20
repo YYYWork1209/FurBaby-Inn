@@ -243,13 +243,15 @@ pending ─┤                 │
 | GET | `/review/my-reviews` | 我的评价 | 是 |
 | POST | `/review/upload-photo` | 上传寄养照片 | 是 |
 | GET | `/review/photos/{orderId}` | 获取寄养照片 | — |
+| POST | `/review/reply` | 商家回复评价 | 是（商家） |
 
 ### 实现要点
 
 - **提交评价**：校验订单归属 + 状态为 `completed` → 检查是否已评价（唯一约束）→ 评分 1-5 → photos 序列化为 JSON → 保存评价 → **自动重算商家平均评分**（保留 1 位小数）
-- **商家评价列表**：分页 + 关联用户昵称头像 + 计算该商家所有评价的平均分，返回专用 `ReviewPageVO`（含 `avgRating`）
+- **商家评价列表**：分页 + 关联用户昵称头像 + 计算该商家所有评价的平均分，返回专用 `ReviewPageVO`（含 `avgRating`），同时返回 `reply`/`replyTime` 字段
 - **上传照片**：接收 `MultipartFile` → 生成模拟 OSS URL → 存入 `boarding_photo` 表
 - **照片查询**：按 orderId 查询所有照片，按上传时间倒序
+- **商家回复**：校验当前用户为评价所属店铺的店主 → 每条评价仅可回复一次 → 记录回复内容和时间，评价列表同步展示
 
 ### 商家评分自动更新
 
