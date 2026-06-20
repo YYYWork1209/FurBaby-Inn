@@ -63,6 +63,10 @@ public class Shop {
     @Schema(description = "状态")
     private ShopStatus status = ShopStatus.pending;
 
+    @Builder.Default
+    @Schema(description = "营业状态")
+    private String bizStatus = "open";
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 

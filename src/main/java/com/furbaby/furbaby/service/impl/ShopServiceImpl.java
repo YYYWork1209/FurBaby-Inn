@@ -8,13 +8,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.furbaby.furbaby.dto.ScheduleDTO;
 import com.furbaby.furbaby.dto.ScheduleUpdateDTO;
 import com.furbaby.furbaby.dto.ShopRegisterDTO;
+import com.furbaby.furbaby.dto.ShopUpdateDTO;
+import com.furbaby.furbaby.entity.Order;
+import com.furbaby.furbaby.entity.Pet;
 import com.furbaby.furbaby.entity.Shop;
 import com.furbaby.furbaby.entity.ShopSchedule;
+import com.furbaby.furbaby.enums.OrderStatus;
 import com.furbaby.furbaby.exception.NoRegisterException;
+import com.furbaby.furbaby.mapper.OrderMapper;
+import com.furbaby.furbaby.mapper.PetMapper;
+import com.furbaby.furbaby.mapper.ReviewMapper;
 import com.furbaby.furbaby.mapper.ShopMapper;
 import com.furbaby.furbaby.mapper.ShopScheduleMapper;
 import com.furbaby.furbaby.service.IShopService;
 import com.furbaby.furbaby.utils.JWTUtils;
+import com.furbaby.furbaby.vo.DashboardStatsVO;
+import com.furbaby.furbaby.vo.MerchantShopVO;
+import com.furbaby.furbaby.vo.OrderItemVO;
 import com.furbaby.furbaby.vo.PageResult;
 import com.furbaby.furbaby.vo.SchedulePublishVO;
 import com.furbaby.furbaby.vo.ScheduleUpdateResultVO;
@@ -27,10 +37,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,6 +52,9 @@ import java.util.stream.Collectors;
 public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService {
 
     private final ShopScheduleMapper shopScheduleMapper;
+    private final OrderMapper orderMapper;
+    private final ReviewMapper reviewMapper;
+    private final PetMapper petMapper;
     private final JWTUtils jwtUtils;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -242,6 +258,194 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 .description(shop.getDescription())
                 .services(parseJsonList(shop.getServices()))
                 .notice(shop.getNotice())
+                .build();
+    }
+
+    @Override
+    public MerchantShopVO getMyShop(String token) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getUserId, userId));
+        if (shop == null) {
+            throw new NoRegisterException("商家不存在");
+        }
+        return MerchantShopVO.builder()
+                .shopId(shop.getId())
+                .name(shop.getName())
+                .avatar(shop.getAvatar())
+                .phone(shop.getPhone())
+                .address(shop.getAddress())
+                .description(shop.getDescription())
+                .tags(parseJsonList(shop.getTags()))
+                .services(parseJsonList(shop.getServices()))
+                .notice(shop.getNotice())
+                .rating(shop.getRating())
+                .price(shop.getPrice())
+                .status(shop.getBizStatus())
+                .build();
+    }
+
+    @Override
+    public MerchantShopVO updateMyShop(String token, ShopUpdateDTO updateDTO) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getUserId, userId));
+        if (shop == null) {
+            throw new NoRegisterException("商家不存在");
+        }
+        if (updateDTO.getName() != null) {
+            shop.setName(updateDTO.getName());
+        }
+        if (updateDTO.getPhone() != null) {
+            shop.setPhone(updateDTO.getPhone());
+        }
+        if (updateDTO.getAddress() != null) {
+            shop.setAddress(updateDTO.getAddress());
+        }
+        if (updateDTO.getDescription() != null) {
+            shop.setDescription(updateDTO.getDescription());
+        }
+        if (updateDTO.getTags() != null) {
+            try {
+                shop.setTags(objectMapper.writeValueAsString(updateDTO.getTags()));
+            } catch (Exception e) {
+                throw new RuntimeException("标签格式错误", e);
+            }
+        }
+        if (updateDTO.getServices() != null) {
+            try {
+                shop.setServices(objectMapper.writeValueAsString(updateDTO.getServices()));
+            } catch (Exception e) {
+                throw new RuntimeException("服务格式错误", e);
+            }
+        }
+        if (updateDTO.getNotice() != null) {
+            shop.setNotice(updateDTO.getNotice());
+        }
+        shop.setUpdateTime(LocalDateTime.now());
+        this.updateById(shop);
+
+        return MerchantShopVO.builder()
+                .shopId(shop.getId())
+                .name(shop.getName())
+                .avatar(shop.getAvatar())
+                .phone(shop.getPhone())
+                .address(shop.getAddress())
+                .description(shop.getDescription())
+                .tags(parseJsonList(shop.getTags()))
+                .services(parseJsonList(shop.getServices()))
+                .notice(shop.getNotice())
+                .rating(shop.getRating())
+                .price(shop.getPrice())
+                .status(shop.getBizStatus())
+                .build();
+    }
+
+    @Override
+    public Map<String, String> updateShopStatus(String token, String bizStatus) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getUserId, userId));
+        if (shop == null) {
+            throw new NoRegisterException("商家不存在");
+        }
+        if (!"open".equals(bizStatus) && !"closed".equals(bizStatus)) {
+            throw new NoRegisterException("营业状态仅支持 open 或 closed");
+        }
+        shop.setBizStatus(bizStatus);
+        shop.setUpdateTime(LocalDateTime.now());
+        this.updateById(shop);
+        return Map.of("success", "true", "status", bizStatus);
+    }
+
+    @Override
+    public DashboardStatsVO getDashboard(String token) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getUserId, userId));
+        if (shop == null) {
+            throw new NoRegisterException("商家不存在");
+        }
+        Long shopId = shop.getId();
+        LocalDate today = LocalDate.now();
+
+        long todayOrders = orderMapper.selectCount(Wrappers.<Order>lambdaQuery()
+                .eq(Order::getShopId, shopId)
+                .ge(Order::getCreateTime, today.atStartOfDay()));
+
+        List<Order> todayPaidOrders = orderMapper.selectList(Wrappers.<Order>lambdaQuery()
+                .eq(Order::getShopId, shopId)
+                .in(Order::getStatus, OrderStatus.paid, OrderStatus.boarding, OrderStatus.completed)
+                .ge(Order::getCreateTime, today.atStartOfDay()));
+        BigDecimal todayRevenue = todayPaidOrders.stream()
+                .map(Order::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long pendingOrders = orderMapper.selectCount(Wrappers.<Order>lambdaQuery()
+                .eq(Order::getShopId, shopId)
+                .eq(Order::getStatus, OrderStatus.pending));
+
+        long boardingCount = orderMapper.selectCount(Wrappers.<Order>lambdaQuery()
+                .eq(Order::getShopId, shopId)
+                .eq(Order::getStatus, OrderStatus.boarding));
+
+        long totalReviews = reviewMapper.selectCount(Wrappers.<com.furbaby.furbaby.entity.Review>lambdaQuery()
+                .eq(com.furbaby.furbaby.entity.Review::getShopId, shopId));
+
+        Double avgRating = shop.getRating() != null ? shop.getRating() : 5.0;
+
+        return DashboardStatsVO.builder()
+                .todayOrders(todayOrders)
+                .todayRevenue(todayRevenue)
+                .pendingOrders(pendingOrders)
+                .boardingCount(boardingCount)
+                .totalReviews(totalReviews)
+                .avgRating(avgRating)
+                .build();
+    }
+
+    @Override
+    public PageResult<OrderItemVO> getShopOrders(String token, Integer page, Integer size, String status) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+        Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getUserId, userId));
+        if (shop == null) {
+            throw new NoRegisterException("商家不存在");
+        }
+        Long shopId = shop.getId();
+
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Order> wrapper =
+                Wrappers.<Order>lambdaQuery().eq(Order::getShopId, shopId);
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(Order::getStatus, OrderStatus.valueOf(status));
+        }
+        wrapper.orderByDesc(Order::getCreateTime);
+
+        long total = orderMapper.selectCount(wrapper);
+        long pages = (total + size - 1) / size;
+        int offset = (page - 1) * size;
+        wrapper.last("LIMIT " + offset + "," + size);
+
+        List<Order> orders = orderMapper.selectList(wrapper);
+
+        Map<Long, String> petNameCache = new HashMap<>();
+        List<OrderItemVO> records = orders.stream().map(o -> {
+            String petName = petNameCache.computeIfAbsent(o.getPetId(), petId -> {
+                Pet pet = petMapper.selectById(petId);
+                return pet != null ? pet.getName() : "未知宠物";
+            });
+            return OrderItemVO.builder()
+                    .orderId(o.getId())
+                    .orderNo(o.getOrderNo())
+                    .shopName(shop.getName())
+                    .petName(petName)
+                    .startDate(o.getStartDate())
+                    .endDate(o.getEndDate())
+                    .status(o.getStatus().name())
+                    .amount(o.getAmount())
+                    .createTime(o.getCreateTime())
+                    .build();
+        }).collect(Collectors.toList());
+
+        return PageResult.<OrderItemVO>builder()
+                .total(total)
+                .pages(pages)
+                .records(records)
                 .build();
     }
 

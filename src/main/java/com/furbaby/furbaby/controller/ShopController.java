@@ -3,8 +3,12 @@ package com.furbaby.furbaby.controller;
 import com.furbaby.furbaby.dto.ScheduleDTO;
 import com.furbaby.furbaby.dto.ScheduleUpdateDTO;
 import com.furbaby.furbaby.dto.ShopRegisterDTO;
+import com.furbaby.furbaby.dto.ShopUpdateDTO;
 import com.furbaby.furbaby.entity.Result;
 import com.furbaby.furbaby.service.IShopService;
+import com.furbaby.furbaby.vo.DashboardStatsVO;
+import com.furbaby.furbaby.vo.MerchantShopVO;
+import com.furbaby.furbaby.vo.OrderItemVO;
 import com.furbaby.furbaby.vo.PageResult;
 import com.furbaby.furbaby.vo.SchedulePublishVO;
 import com.furbaby.furbaby.vo.ScheduleUpdateResultVO;
@@ -12,6 +16,8 @@ import com.furbaby.furbaby.vo.ShopDetailVO;
 import com.furbaby.furbaby.vo.ShopRegisterVO;
 import com.furbaby.furbaby.vo.ShopScheduleVO;
 import com.furbaby.furbaby.vo.ShopVO;
+
+import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -86,6 +92,51 @@ public class ShopController {
                                                  @RequestBody ShopRegisterDTO registerDTO) {
         String token = authHeader.replace("Bearer ", "");
         ShopRegisterVO result = shopService.registerShop(token, registerDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "获取当前商家店铺信息", description = "已登录商家查看自己的店铺信息")
+    @GetMapping("/my")
+    public Result<MerchantShopVO> getMyShop(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        MerchantShopVO result = shopService.getMyShop(token);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "更新店铺信息", description = "已登录商家更新自己的店铺信息")
+    @PutMapping("/my")
+    public Result<MerchantShopVO> updateMyShop(@RequestHeader("Authorization") String authHeader,
+                                                 @RequestBody ShopUpdateDTO updateDTO) {
+        String token = authHeader.replace("Bearer ", "");
+        MerchantShopVO result = shopService.updateMyShop(token, updateDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "切换营业状态", description = "商家切换店铺的营业/休息状态")
+    @PutMapping("/my/status")
+    public Result<Map<String, String>> updateShopStatus(@RequestHeader("Authorization") String authHeader,
+                                                          @RequestBody Map<String, String> body) {
+        String token = authHeader.replace("Bearer ", "");
+        Map<String, String> result = shopService.updateShopStatus(token, body.get("status"));
+        return Result.success(result);
+    }
+
+    @Operation(summary = "商家后台统计", description = "获取商家后台的仪表盘统计数据")
+    @GetMapping("/my/dashboard")
+    public Result<DashboardStatsVO> getDashboard(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        DashboardStatsVO result = shopService.getDashboard(token);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "商家订单列表", description = "查看属于自己店铺的订单列表，可按状态筛选")
+    @GetMapping("/my/orders")
+    public Result<PageResult<OrderItemVO>> getShopOrders(@RequestHeader("Authorization") String authHeader,
+                                                           @RequestParam(required = false) String status,
+                                                           @RequestParam(defaultValue = "1") Integer page,
+                                                           @RequestParam(defaultValue = "10") Integer size) {
+        String token = authHeader.replace("Bearer ", "");
+        PageResult<OrderItemVO> result = shopService.getShopOrders(token, page, size, status);
         return Result.success(result);
     }
 

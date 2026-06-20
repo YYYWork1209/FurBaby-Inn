@@ -161,10 +161,17 @@ npm run preview
 | POST | `/shop/schedule` | 发布档期(商家) | `{ dates: Schedule[] }` | `{ success: boolean, count: number }` |
 | PUT | `/shop/schedule/:date` | 扣减档期库存 | `{ date: string, delta: number }` | `{ success: boolean, available: number }` |
 | POST | `/shop/register` | 商家入驻 | `{ name, phone, address, description, tags, services }` | `{ shopId: number, status: 'pending' }` |
+| GET | `/shop/my` | 获取当前商家店铺信息 | — | `MerchantShop` |
+| PUT | `/shop/my` | 更新店铺信息 | `{ name?, phone?, address?, description?, tags?, services?, notice? }` | `MerchantShop` |
+| PUT | `/shop/my/status` | 切换营业状态 | `{ status: 'open' \| 'closed' }` | `{ success: boolean, status: string }` |
+| GET | `/shop/my/dashboard` | 商家后台统计 | — | `DashboardStats` |
+| GET | `/shop/my/orders` | 商家订单列表 | `?page=&size=&status=` | `{ total: number, pages: number, records: OrderItem[] }` |
 
 **Shop 对象**: `{ id, name, avatar, rating, price, tags, address, distance }`  
 **ShopDetail 对象**: `{ id, name, avatar, photos, rating, price, tags, address, phone, description, services, notice }`  
-**Schedule 对象**: `{ date: string, available: number, price: number }`
+**MerchantShop 对象**: `{ shopId: number, name: string, avatar: string, phone: string, address: string, description: string, tags: string[], services: string[], notice: string, rating: number, price: number, status: 'open' | 'closed' }`  
+**Schedule 对象**: `{ date: string, available: number, price: number }`  
+**DashboardStats 对象**: `{ todayOrders: number, todayRevenue: number, pendingOrders: number, boardingCount: number, totalReviews: number, avgRating: number }`
 
 ## 3. 宠物服务 pet-service (`/api/pet`)
 
