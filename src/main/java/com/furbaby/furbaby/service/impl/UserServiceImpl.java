@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.furbaby.furbaby.dto.LoginDTO;
+import com.furbaby.furbaby.dto.RegisterDTO;
 import com.furbaby.furbaby.entity.Result;
+import com.furbaby.furbaby.entity.Shop;
 import com.furbaby.furbaby.entity.User;
 import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.exception.PhoneOrPasswordException;
@@ -15,6 +17,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.furbaby.furbaby.utils.JWTUtils;
 import com.furbaby.furbaby.vo.LoginVO;
+import com.furbaby.furbaby.vo.RegisterVO;
 import com.furbaby.furbaby.vo.UserInfoVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -59,5 +62,44 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             throw new PhoneOrPasswordException("手机号或密码错误");
         }
 
+    }
+
+    /**
+     * 用户注册,可能是顾客也可能是商家
+     * @param registerDTO 注册信息
+     * @return 注册成功后的用户信息
+     */
+    @Override
+    public RegisterVO register(RegisterDTO registerDTO) {
+        // 校验手机号是否已注册
+        User currentRegisterUser = lambdaQuery()
+                .eq(User::getPhone, registerDTO.getPhone())
+                .one();
+
+        if (currentRegisterUser != null) {
+            throw new PhoneOrPasswordException("手机号已注册");
+        }
+        // 无论是顾客还是商家都属于该平台的用户，信息都会保存到用户表中
+        User newUser = new User();
+        RegisterVO registerVO = new RegisterVO();
+
+        // 是新用户，判断是顾客还是商家注册
+        if (registerDTO.getRole().equals("shop")) {
+            // 商家注册
+            BeanUtils.copyProperties(registerDTO, newUser);
+            // 保存商家用户
+            save(newUser);
+            // 注册成功,返回注册成功后的用户信息
+            BeanUtils.copyProperties(newUser, registerVO);
+        } else {
+            // 顾客注册
+            BeanUtils.copyProperties(registerDTO, newUser);
+            // 保存顾客用户
+            save(newUser);
+            // 注册成功,返回注册成功后的用户信息
+            BeanUtils.copyProperties(newUser, registerVO);
+        }
+
+        return registerVO;
     }
 }

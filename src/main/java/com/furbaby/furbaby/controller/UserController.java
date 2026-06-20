@@ -29,12 +29,12 @@ public class UserController {
     public Result<LoginVO> login(@RequestBody LoginDTO loginDTO) {
         return userService.login(loginDTO);
     }
-//
-//    @PostMapping("/register")
-//    public  register(@RequestBody RegisterDTO registerDTO) {
-//        userService.save(registerDTO);
-//        return
-//    }
+
+    @PostMapping("/register")
+    public  Result<RegisterVO> register(@RequestBody RegisterDTO registerDTO) {
+        RegisterVO registerVO = userService.register(registerDTO);
+        return Result.success(registerVO);
+    }
 
 }
 
