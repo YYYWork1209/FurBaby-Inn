@@ -3,6 +3,7 @@ package com.furbaby.furbaby.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.furbaby.furbaby.entity.Notification;
+import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.mapper.NotificationMapper;
 import com.furbaby.furbaby.service.INotifyService;
 import com.furbaby.furbaby.utils.JWTUtils;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -52,5 +54,23 @@ public class NotifyServiceImpl implements INotifyService {
                 .pages(pages)
                 .records(records)
                 .build();
+    }
+
+    @Override
+    public Map<String, Boolean> markAsRead(String token, Long id) {
+        Long userId = Long.valueOf(jwtUtils.getUserIdFromToken(token));
+
+        Notification notification = notificationMapper.selectOne(
+                Wrappers.<Notification>lambdaQuery()
+                        .eq(Notification::getId, id)
+                        .eq(Notification::getUserId, userId));
+        if (notification == null) {
+            throw new NoRegisterException("通知不存在");
+        }
+
+        notification.setIsRead(true);
+        notificationMapper.updateById(notification);
+
+        return Map.of("success", true);
     }
 }
