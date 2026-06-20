@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.furbaby.furbaby.vo.OrderCreateVO;
 import com.furbaby.furbaby.vo.OrderDetailVO;
 import com.furbaby.furbaby.vo.OrderItemVO;
+import com.furbaby.furbaby.vo.OrderStatusVO;
 import com.furbaby.furbaby.vo.PageResult;
 
 import java.util.Map;
@@ -20,4 +21,6 @@ public interface IOrderService extends IService<Order> {
     OrderDetailVO getOrderDetail(Long id);
 
     Map<String, String> cancelOrder(String token, Long id, OrderCancelDTO cancelDTO);
+
+    OrderStatusVO getOrderStatus(Long id);
 }

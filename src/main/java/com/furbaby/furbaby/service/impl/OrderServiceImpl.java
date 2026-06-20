@@ -21,7 +21,9 @@ import com.furbaby.furbaby.utils.JWTUtils;
 import com.furbaby.furbaby.vo.OrderCreateVO;
 import com.furbaby.furbaby.vo.OrderDetailVO;
 import com.furbaby.furbaby.vo.OrderItemVO;
+import com.furbaby.furbaby.vo.OrderStatusVO;
 import com.furbaby.furbaby.vo.PageResult;
+import com.furbaby.furbaby.vo.StatusStepVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -239,5 +242,48 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }
 
         return Map.of("success", "true", "status", "cancelled");
+    }
+
+    @Override
+    public OrderStatusVO getOrderStatus(Long id) {
+        Order order = this.getOne(Wrappers.<Order>lambdaQuery().eq(Order::getId, id));
+        if (order == null) {
+            throw new NoRegisterException("订单不存在");
+        }
+
+        List<StatusStepVO> timeline = new ArrayList<>();
+        timeline.add(StatusStepVO.builder().status("pending").time(order.getCreateTime()).build());
+
+        if (order.getPayTime() != null) {
+            timeline.add(StatusStepVO.builder().status("paid").time(order.getPayTime()).build());
+        }
+
+        OrderStatus currentStatus = order.getStatus();
+        if (currentStatus == OrderStatus.boarding || currentStatus == OrderStatus.completed
+                || currentStatus == OrderStatus.refunding || currentStatus == OrderStatus.refunded) {
+            timeline.add(StatusStepVO.builder().status("boarding").time(order.getStartDate().atStartOfDay()).build());
+        }
+
+        if (currentStatus == OrderStatus.completed) {
+            timeline.add(StatusStepVO.builder().status("completed").time(order.getUpdateTime()).build());
+        }
+
+        if (currentStatus == OrderStatus.cancelled && order.getCancelTime() != null) {
+            timeline.add(StatusStepVO.builder().status("cancelled").time(order.getCancelTime()).build());
+        }
+
+        if (currentStatus == OrderStatus.refunding) {
+            timeline.add(StatusStepVO.builder().status("refunding").time(order.getUpdateTime()).build());
+        }
+
+        if (currentStatus == OrderStatus.refunded) {
+            timeline.add(StatusStepVO.builder().status("refunded").time(order.getUpdateTime()).build());
+        }
+
+        return OrderStatusVO.builder()
+                .orderId(order.getId())
+                .status(currentStatus.name())
+                .timeline(timeline)
+                .build();
     }
 }

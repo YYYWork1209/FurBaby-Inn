@@ -7,6 +7,7 @@ import com.furbaby.furbaby.service.IOrderService;
 import com.furbaby.furbaby.vo.OrderCreateVO;
 import com.furbaby.furbaby.vo.OrderDetailVO;
 import com.furbaby.furbaby.vo.OrderItemVO;
+import com.furbaby.furbaby.vo.OrderStatusVO;
 import com.furbaby.furbaby.vo.PageResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -71,5 +72,12 @@ public class OrderController {
         }
         Map<String, String> result = orderService.cancelOrder(token, id, cancelDTO);
         return Result.success(result);
+    }
+
+    @Operation(summary = "查询订单状态", description = "查询订单当前状态及完整状态流转时间线")
+    @GetMapping("/status/{id}")
+    public Result<OrderStatusVO> getOrderStatus(@PathVariable Long id) {
+        OrderStatusVO statusVO = orderService.getOrderStatus(id);
+        return Result.success(statusVO);
     }
 }
