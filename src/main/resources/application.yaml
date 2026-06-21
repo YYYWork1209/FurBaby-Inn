@@ -7,17 +7,38 @@ spring:
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 数据库连接池配置
-  hikari:
-     # 最小空闲连接数。连接池中维护的最小空闲连接数，即使没有活动，也会保留这么多连接。
-     minimum-idle: 5
-     # 最大连接池大小。连接池中允许的最大连接数，包括空闲和正在使用的连接。
-     maximum-pool-size: 20
-     # 空闲连接超时时间。当连接池中的连接空闲时间超过此值时，它将被标记为可回收。单位是毫秒 (300000ms = 5分钟)。
-     idle-timeout: 300000
-     # 连接最大生命周期。连接池中连接的最长生命周期，超过此时间的连接将被关闭并替换。这有助于防止内存泄漏。单位是毫秒 (1200000ms = 20分钟)。
-     max-lifetime: 1200000
-     # 连接超时时间。客户端等待从池中获取连接的最长时间。如果在此时间内没有可用连接，则会抛出SQLException。单位是毫秒 (30000ms = 30秒)。
-     connection-timeout: 30000
+    hikari:
+       # 最小空闲连接数。连接池中维护的最小空闲连接数，即使没有活动，也会保留这么多连接。
+       minimum-idle: 5
+       # 最大连接池大小。连接池中允许的最大连接数，包括空闲和正在使用的连接。
+       maximum-pool-size: 20
+       # 空闲连接超时时间。当连接池中的连接空闲时间超过此值时，它将被标记为可回收。单位是毫秒 (300000ms = 5分钟)。
+       idle-timeout: 300000
+       # 连接最大生命周期。连接池中连接的最长生命周期，超过此时间的连接将被关闭并替换。这有助于防止内存泄漏。单位是毫秒 (1200000ms = 20分钟)。
+       max-lifetime: 1200000
+       # 连接超时时间。客户端等待从池中获取连接的最长时间。如果在此时间内没有可用连接，则会抛出SQLException。单位是毫秒 (30000ms = 30秒)。
+       connection-timeout: 30000
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # password:            # Windows 本地开发 Redis 默认无密码
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8      # 最大连接数
+          max-idle: 4        # 最大空闲连接
+          min-idle: 2        # 最小空闲连接
+          max-wait: 3000ms   # 获取连接最大等待时间
+  rabbitmq:
+    host: 121.196.197.180
+    port: 5672
+    username: furbaby-inn
+    password: Qsnhsdwjz9
+    listener:
+      simple:
+        acknowledge-mode: manual   # 手动确认，消费成功后才 ACK，防止消息丢失
+        prefetch: 1                # 每次只取一条，避免积压
 
 jwt:
 #  Keys.hmacShaKeyFor 报错：如果你的 secret 长度小于 32 字节（即少于 32 个字符），启动会报 weak key 异常。
@@ -36,28 +57,6 @@ mybatis-plus:
     # 开启枚举映射处理器，实现枚举型数据对数据库的映射，插入数据枚举类型转换为数据库中的，还需要再对应的与数据库枚举字段对应的java属性字段上添加@EnumValue注解
     default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
   type-enums-package: com.furbaby.furbaby.enums # 数据库也是枚举类型，且枚举值与自己定义的一样，所以单独配置映射即可
-
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      # password:            # Windows 本地开发 Redis 默认无密码
-      timeout: 3000ms
-      lettuce:
-        pool:
-          max-active: 8      # 最大连接数
-          max-idle: 4        # 最大空闲连接
-          min-idle: 2        # 最小空闲连接
-          max-wait: 3000ms   # 获取连接最大等待时间
-  rabbitmq:
-    host: 121.196.197.180
-    port: 5672
-    username: rabbitMQ
-    password: Qsnhsdwjz9
-    listener:
-      simple:
-        acknowledge-mode: manual   # 手动确认，消费成功后才 ACK，防止消息丢失
-        prefetch: 1                # 每次只取一条，避免积压
 
 springdoc:
   swagger-ui:
