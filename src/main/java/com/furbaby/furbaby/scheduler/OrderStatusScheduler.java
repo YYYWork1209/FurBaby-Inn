@@ -22,11 +22,14 @@ public class OrderStatusScheduler {
     private final OrderMapper orderMapper;
 
     /**
-     * 每日 0:00 执行：到期入住 + 到期完成
-     * 企业实践中通常使用 XXL-JOB / Elastic-Job 等分布式调度框架管理定时任务，
-     * 小型项目可直接使用 Spring @Scheduled，配合多实例部署时的分布式锁（如 Redis SETNX）避免重复执行。
+     * 每日 0:00 执行：到期入住 + 到期完成。
+     *
+     * 已被 RabbitMQ 延迟消息替代，保留此定时任务作为兜底方案。
+     * 正常情况由 OrderMessageListener 消费延迟消息触发状态流转；
+     * 若 RabbitMQ 故障导致消息丢失，每日 0 点全表扫描补漏。
+     * 启用时取消注释 @Scheduled 即可。
      */
-    @Scheduled(cron = "0 0 0 * * ?")
+    // @Scheduled(cron = "0 0 0 * * ?")
     public void autoUpdateOrderStatus() {
         LocalDate today = LocalDate.now();
         log.info("定时任务：开始扫描订单状态更新，当前日期 {}", today);
