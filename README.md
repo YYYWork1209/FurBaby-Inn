@@ -493,6 +493,83 @@ Redis ────→ RabbitMQ ────→ 微服务拆分 + Gateway
 
 **容错设计：** CacheHelper 所有 Redis 操作均以 try-catch 包裹，Redis 不可用时自动降级到数据库查询，不影响主流程。
 
+#### 已实现：分布式锁
+
+**实现文件：** `lock/DistributedLock.java`
+
+**核心原理：**
+
+```
+加锁:  SET lock:shop:schedule:3 {UUID} NX PX 10000
+          ↑                        ↑      ↑   ↑
+      key=资源标识          随机凭证  仅当不存在 10秒后自动过期
+
+解锁:  Lua 脚本原子校验 GET key == {UUID} → DEL key
+                         ↑
+               只删自己的锁，不误删别人的
+```
+
+| 机制 | 说明 | 解决的问题 |
+|------|------|-----------|
+| `SET NX PX` | Redis 原子指令，key 不存在时才写入并设置过期时间 | 互斥性：同一时刻仅一个线程持有锁 |
+| UUID 凭证 | 每次加锁生成唯一随机值，解锁时校验 | 防误删：锁过期后其他线程已持有新锁，旧持有者无法释放别人的锁 |
+| Lua 脚本解锁 | `GET + DEL` 在 Redis 服务端原子执行 | 校验和删除之间无时间窗口，避免并发问题 |
+| 锁过期兜底 | 即使业务线程崩溃未解锁，TTL 到期自动释放 | 防死锁：不会因异常导致锁永久占用 |
+| 锁内二次校验 | 获取锁后重新查询数据状态 | 防止锁外检查到锁内执行之间的状态变更（double-check） |
+
+**加锁粒度设计：**
+
+| 场景 | 锁键 | TTL | 超时 | 粒度依据 |
+|------|------|:---:|:---:|------|
+| 创建订单 | `lock:shop:schedule:{shopId}` | 10s | 5s | 按商家加锁：不同商家并行下单，同一商家串行化防止超卖 |
+| 退款审批 | `lock:refund:{refundId}` | 5s | 3s | 按退款单加锁：同一退款单不可并发审批 |
+
+锁粒度选择 `shop:schedule:{shopId}` 而非 `shop:schedule:{shopId}:{date}`（按天），权衡：
+
+- 按商家加锁（当前方案）：同一商家所有预约串行，锁持有时间极短（几十毫秒），不会成为瓶颈；实现简单，锁键少
+- 按天加锁：并发度更高，但下单跨越多个日期时需要获取多把锁，增加死锁风险和代码复杂度。当前业务量不需要此粒度
+
+**实现示例（OrderServiceImpl.createOrder）：**
+
+```java
+String lockHolder = distributedLock.tryLock(
+        "shop:schedule:" + dto.getShopId(),
+        Duration.ofSeconds(10),   // 锁 TTL：防止死锁
+        Duration.ofSeconds(5));   // 最大等待：提示用户重试
+
+if (lockHolder == null) {
+    throw new NoRegisterException("当前预约人数较多，请稍后重试");
+}
+
+try {
+    // 临界区：查询档期 → 校验可用 → 创建订单 → 扣减库存 → 驱逐缓存
+} finally {
+    distributedLock.unlock("shop:schedule:" + dto.getShopId(), lockHolder);
+}
+```
+
+**与 @Synchronized 的对比：**
+
+| | `synchronized` | Redis 分布式锁 |
+|------|:---:|:---:|
+| 作用范围 | 单 JVM 内 | 跨 JVM（多实例、多服务） |
+| 锁释放 | 代码块结束或异常自动释放 | TTL 自动过期 + finally 主动释放，双重保障 |
+| 死锁风险 | 无（JVM 保证释放） | 有，通过 TTL 兜底解决 |
+| 性能 | 极高（内存级） | 高（网络往返 ~1ms） |
+| 适用场景 | 单实例开发/测试 | 多实例部署、微服务环境 |
+
+**设计亮点：**
+
+1. **UUID 防误删** — 解锁脚本校验 value 匹配后才 DEL，避免锁过期后 A 线程释放 B 线程持有的锁。这是 Redis 官方推荐的分布式锁正确实现方式，区别于网上常见的"直接 DEL key"的错误写法
+
+2. **锁内二次校验（Double-Check）** — 以退款审批为例：锁外先检查 `refund.status == pending`，获取锁后再次查询确认状态未变。因为在等待锁期间，前一个持有者可能已经处理完毕，二次校验防止重复操作
+
+3. **锁膨胀自动恢复** — 即使 `try` 块内抛出异常（如档期不足），`finally` 块保证锁一定释放，不会因业务异常导致锁泄漏
+
+4. **锁粒度的业务隔离** — `lock:shop:schedule:3` 和 `lock:shop:schedule:5` 是两把独立的锁，商家 3 和商家 5 的预约完全并行，锁只阻止对同一商家的并发竞争
+
+5. **用户友好降级** — 获取锁超时不抛系统异常，而是返回"预约人数较多，请稍后重试"，用户可以刷新重试，而非看到 500 错误
+
 ---
 
 ### 第二阶段：RabbitMQ 集成

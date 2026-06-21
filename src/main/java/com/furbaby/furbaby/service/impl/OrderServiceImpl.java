@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.furbaby.furbaby.cache.CacheHelper;
+import com.furbaby.furbaby.lock.DistributedLock;
 import com.furbaby.furbaby.dto.OrderCancelDTO;
 import com.furbaby.furbaby.dto.OrderCreateDTO;
 import com.furbaby.furbaby.entity.Order;
@@ -29,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -49,6 +51,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final PetMapper petMapper;
     private final JWTUtils jwtUtils;
     private final CacheHelper cacheHelper;
+    private final DistributedLock distributedLock;
 
     @Override
     public OrderCreateVO createOrder(String token, OrderCreateDTO dto) {
@@ -78,59 +81,72 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             throw new NoRegisterException("离店日期必须晚于入住日期");
         }
 
-        List<ShopSchedule> schedules = shopScheduleMapper.selectList(
-                Wrappers.<ShopSchedule>lambdaQuery()
-                        .eq(ShopSchedule::getShopId, dto.getShopId())
-                        .ge(ShopSchedule::getDate, dto.getStartDate())
-                        .lt(ShopSchedule::getDate, dto.getEndDate()));
+        // 分布式锁：防止同一商家档期并发超卖
+        String lockHolder = distributedLock.tryLock(
+                "shop:schedule:" + dto.getShopId(),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(5));
+        if (lockHolder == null) {
+            throw new NoRegisterException("当前预约人数较多，请稍后重试");
+        }
 
-        Map<LocalDate, ShopSchedule> scheduleMap = schedules.stream()
-                .collect(Collectors.toMap(ShopSchedule::getDate, s -> s));
+        try {
+            List<ShopSchedule> schedules = shopScheduleMapper.selectList(
+                    Wrappers.<ShopSchedule>lambdaQuery()
+                            .eq(ShopSchedule::getShopId, dto.getShopId())
+                            .ge(ShopSchedule::getDate, dto.getStartDate())
+                            .lt(ShopSchedule::getDate, dto.getEndDate()));
 
-        BigDecimal amount = BigDecimal.ZERO;
-        for (LocalDate date = dto.getStartDate(); date.isBefore(dto.getEndDate()); date = date.plusDays(1)) {
-            ShopSchedule s = scheduleMap.get(date);
-            if (s == null || s.getAvailable() <= 0) {
-                throw new NoRegisterException(date + " 暂无可用档期");
+            Map<LocalDate, ShopSchedule> scheduleMap = schedules.stream()
+                    .collect(Collectors.toMap(ShopSchedule::getDate, s -> s));
+
+            BigDecimal amount = BigDecimal.ZERO;
+            for (LocalDate date = dto.getStartDate(); date.isBefore(dto.getEndDate()); date = date.plusDays(1)) {
+                ShopSchedule s = scheduleMap.get(date);
+                if (s == null || s.getAvailable() <= 0) {
+                    throw new NoRegisterException(date + " 暂无可用档期");
+                }
+                amount = amount.add(s.getPrice());
             }
-            amount = amount.add(s.getPrice());
+
+            String orderNo = "ORD" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                    + String.format("%04d", new Random().nextInt(10000));
+
+            Order order = Order.builder()
+                    .orderNo(orderNo)
+                    .userId(userId)
+                    .shopId(dto.getShopId())
+                    .petId(dto.getPetId())
+                    .startDate(dto.getStartDate())
+                    .endDate(dto.getEndDate())
+                    .status(OrderStatus.pending)
+                    .amount(amount)
+                    .remark(dto.getRemark())
+                    .createTime(LocalDateTime.now())
+                    .updateTime(LocalDateTime.now())
+                    .build();
+            this.save(order);
+
+            for (LocalDate date = dto.getStartDate(); date.isBefore(dto.getEndDate()); date = date.plusDays(1)) {
+                ShopSchedule s = scheduleMap.get(date);
+                s.setAvailable(s.getAvailable() - 1);
+                s.setUpdateTime(LocalDateTime.now());
+                shopScheduleMapper.updateById(s);
+            }
+
+            cacheHelper.evictPattern("shop:schedule:" + dto.getShopId() + ":*");
+            cacheHelper.evictPattern("shop:list:*");
+
+            return OrderCreateVO.builder()
+                    .orderId(order.getId())
+                    .orderNo(order.getOrderNo())
+                    .status(order.getStatus().name())
+                    .amount(order.getAmount())
+                    .createTime(order.getCreateTime())
+                    .build();
+        } finally {
+            distributedLock.unlock("shop:schedule:" + dto.getShopId(), lockHolder);
         }
-
-        String orderNo = "ORD" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-                + String.format("%04d", new Random().nextInt(10000));
-
-        Order order = Order.builder()
-                .orderNo(orderNo)
-                .userId(userId)
-                .shopId(dto.getShopId())
-                .petId(dto.getPetId())
-                .startDate(dto.getStartDate())
-                .endDate(dto.getEndDate())
-                .status(OrderStatus.pending)
-                .amount(amount)
-                .remark(dto.getRemark())
-                .createTime(LocalDateTime.now())
-                .updateTime(LocalDateTime.now())
-                .build();
-        this.save(order);
-
-        for (LocalDate date = dto.getStartDate(); date.isBefore(dto.getEndDate()); date = date.plusDays(1)) {
-            ShopSchedule s = scheduleMap.get(date);
-            s.setAvailable(s.getAvailable() - 1);
-            s.setUpdateTime(LocalDateTime.now());
-            shopScheduleMapper.updateById(s);
-        }
-
-        cacheHelper.evictPattern("shop:schedule:" + dto.getShopId() + ":*");
-        cacheHelper.evictPattern("shop:list:*");
-
-        return OrderCreateVO.builder()
-                .orderId(order.getId())
-                .orderNo(order.getOrderNo())
-                .status(order.getStatus().name())
-                .amount(order.getAmount())
-                .createTime(order.getCreateTime())
-                .build();
     }
 
     @Override

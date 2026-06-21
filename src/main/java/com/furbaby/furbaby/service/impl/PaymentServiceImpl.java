@@ -2,6 +2,7 @@ package com.furbaby.furbaby.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.furbaby.furbaby.cache.CacheHelper;
+import com.furbaby.furbaby.lock.DistributedLock;
 import com.furbaby.furbaby.dto.PaymentCreateDTO;
 import com.furbaby.furbaby.dto.RefundDTO;
 import com.furbaby.furbaby.entity.Order;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -45,6 +47,7 @@ public class PaymentServiceImpl implements IPaymentService {
     private final ShopScheduleMapper shopScheduleMapper;
     private final JWTUtils jwtUtils;
     private final CacheHelper cacheHelper;
+    private final DistributedLock distributedLock;
 
     @Override
     public PaymentCreateVO createPayment(String token, PaymentCreateDTO createDTO) {
@@ -189,39 +192,58 @@ public class PaymentServiceImpl implements IPaymentService {
             throw new NoRegisterException("无权操作此退款，仅该订单所属商家可处理");
         }
 
-        if ("approve".equals(action)) {
-            refund.setStatus(RefundStatus.success);
-            refund.setUpdateTime(LocalDateTime.now());
-            refundMapper.updateById(refund);
+        // 分布式锁：防止同一退款单被并发重复处理
+        String lockHolder = distributedLock.tryLock(
+                "refund:" + refundId,
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(3));
+        if (lockHolder == null) {
+            throw new NoRegisterException("退款单正在处理中，请稍后重试");
+        }
 
-            order.setStatus(OrderStatus.refunded);
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.updateById(order);
-
-            // 恢复档期库存
-            List<ShopSchedule> schedules = shopScheduleMapper.selectList(
-                    Wrappers.<ShopSchedule>lambdaQuery()
-                            .eq(ShopSchedule::getShopId, order.getShopId())
-                            .ge(ShopSchedule::getDate, order.getStartDate())
-                            .lt(ShopSchedule::getDate, order.getEndDate()));
-            for (ShopSchedule s : schedules) {
-                s.setAvailable(s.getAvailable() + 1);
-                s.setUpdateTime(LocalDateTime.now());
-                shopScheduleMapper.updateById(s);
+        try {
+            // 锁内二次校验状态，防止获取锁期间已被处理
+            Refund lockedRefund = refundMapper.selectById(refundId);
+            if (lockedRefund.getStatus() != RefundStatus.pending) {
+                throw new NoRegisterException("退款单已处理，不可重复操作");
             }
-            cacheHelper.evictPattern("shop:schedule:" + order.getShopId() + ":*");
-            return Map.of("success", "true", "status", "refunded");
-        } else if ("reject".equals(action)) {
-            refund.setStatus(RefundStatus.failed);
-            refund.setUpdateTime(LocalDateTime.now());
-            refundMapper.updateById(refund);
 
-            order.setStatus(OrderStatus.boarding);
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.updateById(order);
-            return Map.of("success", "true", "status", "boarding");
-        } else {
-            throw new NoRegisterException("操作类型仅支持 approve 或 reject");
+            if ("approve".equals(action)) {
+                refund.setStatus(RefundStatus.success);
+                refund.setUpdateTime(LocalDateTime.now());
+                refundMapper.updateById(refund);
+
+                order.setStatus(OrderStatus.refunded);
+                order.setUpdateTime(LocalDateTime.now());
+                orderMapper.updateById(order);
+
+                // 恢复档期库存
+                List<ShopSchedule> schedules = shopScheduleMapper.selectList(
+                        Wrappers.<ShopSchedule>lambdaQuery()
+                                .eq(ShopSchedule::getShopId, order.getShopId())
+                                .ge(ShopSchedule::getDate, order.getStartDate())
+                                .lt(ShopSchedule::getDate, order.getEndDate()));
+                for (ShopSchedule s : schedules) {
+                    s.setAvailable(s.getAvailable() + 1);
+                    s.setUpdateTime(LocalDateTime.now());
+                    shopScheduleMapper.updateById(s);
+                }
+                cacheHelper.evictPattern("shop:schedule:" + order.getShopId() + ":*");
+                return Map.of("success", "true", "status", "refunded");
+            } else if ("reject".equals(action)) {
+                refund.setStatus(RefundStatus.failed);
+                refund.setUpdateTime(LocalDateTime.now());
+                refundMapper.updateById(refund);
+
+                order.setStatus(OrderStatus.boarding);
+                order.setUpdateTime(LocalDateTime.now());
+                orderMapper.updateById(order);
+                return Map.of("success", "true", "status", "boarding");
+            } else {
+                throw new NoRegisterException("操作类型仅支持 approve 或 reject");
+            }
+        } finally {
+            distributedLock.unlock("refund:" + refundId, lockHolder);
         }
     }
 }
