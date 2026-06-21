@@ -5,8 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-// 展示禁用过滤器，最后开发完成后再考虑登录设计
-//@ServletComponentScan
+@ServletComponentScan
 @EnableScheduling
 @SpringBootApplication
 public class FurbabyInnApplication {

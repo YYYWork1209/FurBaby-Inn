@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @Slf4j
 @Tag(name = "用户管理")
 @RestController
@@ -66,6 +68,14 @@ public class UserController {
     public Result<UserInfoVO> getUserInfoById(@PathVariable Long userId) {
         UserInfoVO userInfo = userService.getUserInfoById(userId);
         return Result.success(userInfo);
+    }
+
+    @Operation(summary = "退出登录", description = "将当前Token加入黑名单，使其立即失效")
+    @PostMapping("/logout")
+    public Result<Map<String, String>> logout(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        Map<String, String> result = userService.logout(token);
+        return Result.success(result);
     }
 
 }

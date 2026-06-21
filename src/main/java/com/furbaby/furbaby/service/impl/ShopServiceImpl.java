@@ -14,6 +14,7 @@ import com.furbaby.furbaby.entity.Pet;
 import com.furbaby.furbaby.entity.Shop;
 import com.furbaby.furbaby.entity.ShopSchedule;
 import com.furbaby.furbaby.enums.OrderStatus;
+import com.furbaby.furbaby.cache.CacheHelper;
 import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.mapper.OrderMapper;
 import com.furbaby.furbaby.mapper.PetMapper;
@@ -38,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -56,85 +58,106 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     private final ReviewMapper reviewMapper;
     private final PetMapper petMapper;
     private final JWTUtils jwtUtils;
+    private final CacheHelper cacheHelper;
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    // 缓存 TTL 常量
+    private static final Duration SHOP_LIST_TTL = Duration.ofMinutes(5);
+    private static final Duration SHOP_DETAIL_TTL = Duration.ofMinutes(10);
+    private static final Duration SHOP_SCHEDULE_TTL = Duration.ofMinutes(5);
 
     @Override
     public PageResult<ShopVO> listShops(String keyword, Integer page, Integer size, String sort) {
-        LambdaQueryWrapper<Shop> wrapper = Wrappers.<Shop>lambdaQuery();
+        String kw = (keyword == null || keyword.isBlank()) ? "ALL" : keyword.trim();
+        String s = (sort == null || sort.isBlank()) ? "default" : sort;
+        String cacheKey = String.format("shop:list:%s:%s:%d:%d", kw, s, page, size);
 
-        if (keyword != null && !keyword.isBlank()) {
-            wrapper.and(w -> w
-                    .like(Shop::getName, keyword)
-                    .or()
-                    .like(Shop::getTags, keyword)
-                    .or()
-                    .like(Shop::getDescription, keyword)
-                    .or()
-                    .like(Shop::getAddress, keyword));
-        }
+        return cacheHelper.getOrFetch(cacheKey, PageResult.class, () -> {
+            LambdaQueryWrapper<Shop> wrapper = Wrappers.<Shop>lambdaQuery();
 
-        if ("rating".equals(sort)) {
-            wrapper.orderByDesc(Shop::getRating);
-        } else if ("price_asc".equals(sort)) {
-            wrapper.orderByAsc(Shop::getPrice);
-        } else if ("price_desc".equals(sort)) {
-            wrapper.orderByDesc(Shop::getPrice);
-        } else {
-            wrapper.orderByDesc(Shop::getCreateTime);
-        }
+            if (!"ALL".equals(kw)) {
+                wrapper.and(w -> w
+                        .like(Shop::getName, kw)
+                        .or()
+                        .like(Shop::getTags, kw)
+                        .or()
+                        .like(Shop::getDescription, kw)
+                        .or()
+                        .like(Shop::getAddress, kw));
+            }
 
-        long total = this.count(wrapper);
-        long pages = (total + size - 1) / size;
-        int offset = (page - 1) * size;
-        wrapper.last("LIMIT " + offset + "," + size);
+            if ("rating".equals(s)) {
+                wrapper.orderByDesc(Shop::getRating);
+            } else if ("price_asc".equals(s)) {
+                wrapper.orderByAsc(Shop::getPrice);
+            } else if ("price_desc".equals(s)) {
+                wrapper.orderByDesc(Shop::getPrice);
+            } else {
+                wrapper.orderByDesc(Shop::getCreateTime);
+            }
 
-        List<Shop> shopList = this.list(wrapper);
-        List<ShopVO> records = shopList.stream()
-                .map(this::toShopVO)
-                .collect(Collectors.toList());
+            long total = this.count(wrapper);
+            long pages = (total + size - 1) / size;
+            int offset = (page - 1) * size;
+            wrapper.last("LIMIT " + offset + "," + size);
 
-        return PageResult.<ShopVO>builder()
-                .total(total)
-                .pages(pages)
-                .records(records)
-                .build();
+            List<Shop> shopList = this.list(wrapper);
+            List<ShopVO> records = shopList.stream()
+                    .map(this::toShopVO)
+                    .collect(Collectors.toList());
+
+            return PageResult.<ShopVO>builder()
+                    .total(total)
+                    .pages(pages)
+                    .records(records)
+                    .build();
+        }, SHOP_LIST_TTL);
     }
 
     @Override
     public ShopDetailVO getShopDetail(Long id) {
-        Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getId, id));
-        if (shop == null) {
-            throw new NoRegisterException("商家不存在");
-        }
-        return toShopDetailVO(shop);
+        String cacheKey = "shop:detail:" + id;
+        return cacheHelper.getOrFetch(cacheKey, ShopDetailVO.class, () -> {
+            Shop shop = this.getOne(Wrappers.<Shop>lambdaQuery().eq(Shop::getId, id));
+            if (shop == null) {
+                throw new NoRegisterException("商家不存在");
+            }
+            return toShopDetailVO(shop);
+        }, SHOP_DETAIL_TTL);
     }
 
     @Override
     public ShopScheduleVO getShopSchedule(Long shopId, String startDate, String endDate) {
-        LambdaQueryWrapper<ShopSchedule> wrapper = Wrappers.<ShopSchedule>lambdaQuery()
-                .eq(ShopSchedule::getShopId, shopId);
+        String sd = (startDate == null || startDate.isBlank()) ? "ALL" : startDate;
+        String ed = (endDate == null || endDate.isBlank()) ? "ALL" : endDate;
+        String cacheKey = String.format("shop:schedule:%d:%s:%s", shopId, sd, ed);
 
-        if (startDate != null && !startDate.isBlank()) {
-            wrapper.ge(ShopSchedule::getDate, LocalDate.parse(startDate));
-        }
-        if (endDate != null && !endDate.isBlank()) {
-            wrapper.le(ShopSchedule::getDate, LocalDate.parse(endDate));
-        }
-        wrapper.orderByAsc(ShopSchedule::getDate);
+        return cacheHelper.getOrFetch(cacheKey, ShopScheduleVO.class, () -> {
+            LambdaQueryWrapper<ShopSchedule> wrapper = Wrappers.<ShopSchedule>lambdaQuery()
+                    .eq(ShopSchedule::getShopId, shopId);
 
-        List<ShopSchedule> schedules = shopScheduleMapper.selectList(wrapper);
-        List<ScheduleVO> scheduleVOs = schedules.stream()
-                .map(s -> ScheduleVO.builder()
-                        .date(s.getDate())
-                        .available(s.getAvailable())
-                        .price(s.getPrice())
-                        .build())
-                .collect(Collectors.toList());
+            if (!"ALL".equals(sd)) {
+                wrapper.ge(ShopSchedule::getDate, LocalDate.parse(sd));
+            }
+            if (!"ALL".equals(ed)) {
+                wrapper.le(ShopSchedule::getDate, LocalDate.parse(ed));
+            }
+            wrapper.orderByAsc(ShopSchedule::getDate);
 
-        return ShopScheduleVO.builder()
-                .shopId(shopId)
-                .schedules(scheduleVOs)
-                .build();
+            List<ShopSchedule> schedules = shopScheduleMapper.selectList(wrapper);
+            List<ScheduleVO> scheduleVOs = schedules.stream()
+                    .map(s -> ScheduleVO.builder()
+                            .date(s.getDate())
+                            .available(s.getAvailable())
+                            .price(s.getPrice())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return ShopScheduleVO.builder()
+                    .shopId(shopId)
+                    .schedules(scheduleVOs)
+                    .build();
+        }, SHOP_SCHEDULE_TTL);
     }
 
     @Override
@@ -172,6 +195,8 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             count++;
         }
 
+        cacheHelper.evictPattern("shop:schedule:" + shop.getId() + ":*");
+        cacheHelper.evictPattern("shop:list:*");
         return SchedulePublishVO.builder().success(true).count(count).build();
     }
 
@@ -196,6 +221,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         schedule.setAvailable(schedule.getAvailable() + updateDTO.getDelta());
         schedule.setUpdateTime(LocalDateTime.now());
         shopScheduleMapper.updateById(schedule);
+        cacheHelper.evictPattern("shop:schedule:" + shop.getId() + ":*");
 
         return ScheduleUpdateResultVO.builder().success(true).available(schedule.getAvailable()).build();
     }
@@ -222,6 +248,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                     .updateTime(LocalDateTime.now())
                     .build();
             this.save(shop);
+            cacheHelper.evictPattern("shop:list:*");
 
             return ShopRegisterVO.builder()
                     .shopId(shop.getId())
@@ -325,6 +352,8 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         }
         shop.setUpdateTime(LocalDateTime.now());
         this.updateById(shop);
+        cacheHelper.evict("shop:detail:" + shop.getId());
+        cacheHelper.evictPattern("shop:list:*");
 
         return MerchantShopVO.builder()
                 .shopId(shop.getId())
@@ -355,6 +384,8 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         shop.setBizStatus(bizStatus);
         shop.setUpdateTime(LocalDateTime.now());
         this.updateById(shop);
+        cacheHelper.evict("shop:detail:" + shop.getId());
+        cacheHelper.evictPattern("shop:list:*");
         return Map.of("success", "true", "status", bizStatus);
     }
 
