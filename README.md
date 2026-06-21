@@ -202,24 +202,28 @@ pending ───────────┤                 │
 
 下单减库存、取消还库存、退款还库存均通过 `shopScheduleMapper.updateById()` 逐日操作，保证不会超卖。档期按天粒度管理，每日独立 available 计数。
 
-### 订单状态自动流转（定时任务）
+### 订单状态自动流转（RabbitMQ 延迟消息）
 
-以下两个状态转换不由用户手动触发，而是通过 **Spring `@Scheduled` 定时任务**在每日 0:00 自动扫描执行：
+订单状态转换不由用户手动触发，而是通过 **RabbitMQ 死信队列（DLX）+ per-message TTL** 实现精确延迟投递：
 
-| 转换 | 触发条件 | Cron |
-|------|----------|------|
-| `paid` → `boarding` | `start_date <= 今天` 且当前状态为 paid | `0 0 0 * * ?` |
-| `boarding` → `completed` | `end_date < 今天` 且当前状态为 boarding | `0 0 0 * * ?` |
+| 转换 | 消息类型 | TTL | 触发条件 |
+|------|---------|-----|---------|
+| `pending` → `cancelled` | `TIMEOUT_CANCEL` | 30 min | 超时未支付，自动取消并恢复档期 |
+| `paid` → `boarding` | `START_BOARDING` | startDate - now | 到达寄养开始日期 |
+| `boarding` → `completed` | `COMPLETE_BOARDING` | endDate+1day - now | 超过寄养结束日期 |
 
-**实现文件**: `scheduler/OrderStatusScheduler.java`
+**实现文件：**
+- `mq/OrderMessageSender.java` — 发送延迟消息（per-message TTL 写入 `expiration` 头）
+- `mq/OrderMessageListener.java` — 消费延迟消息执行状态流转（含幂等校验）
+- `scheduler/OrderStatusScheduler.java` — 已注释 `@Scheduled`，保留方法体作为 RabbitMQ 故障时的补漏方案
 
-**原理（企业常用方式）**：
+**原理：**
 
-1. **`@EnableScheduling`** 在主类开启 Spring 定时任务支持
-2. **`@Scheduled(cron = "0 0 0 * * ?")`** 定义每日 0:00 执行，Spring 在 `TaskScheduler` 线程池中触发
-3. **扫描逻辑**：用 MyBatis-Plus `Wrappers.lambdaQuery()` 条件查询匹配的订单，逐笔更新状态并附加日志
-4. **幂等性**：通过 `eq(Order::getStatus, 预期状态)` 在 WHERE 条件中锁定当前状态，即便任务重复执行也不会误改
-5. **分布式扩展**：多实例部署时需加分布式锁（如 Redis SETNX）避免重复执行，或升级为 XXL-JOB / Elastic-Job 等分布式调度框架统一管理
+1. **消息发送**：订单创建/支付时将消息发送到 `order.delay.queue`（该队列无消费者），RabbitMQ 在消息 TTL 到期后自动将其转发到死信交换机 `order.dlx.exchange` → 路由到 `order.process.queue`
+2. **精确触发**：每条消息独立 TTL，30 分钟超时、按寄养日期触发等不同延迟互不干扰，精确到毫秒级
+3. **幂等校验**：消费者处理前先检查订单当前状态，仅当状态匹配时才执行流转。TIMEOUT_CANCEL 发出一条后即使 30 分钟内订单已支付，消息到达时因状态检查（非 pending → 跳过）也不会误取消
+4. **手动 ACK**：消费成功后 `basicAck` 确认；业务异常时 `basicNack` 重新入队，配合持久化队列保证消息不丢失
+5. **定时任务兜底**：`@Scheduled` 仅注释不删除，RabbitMQ 连接故障时可取消注释恢复每日全表扫描补漏
 
 ---
 
@@ -643,15 +647,114 @@ Token 在 2026-06-22 14:00 过期，用户在 2026-06-21 14:00 登出
 
 **目标：** 用消息队列替换定时轮询，实现异步解耦和可靠延迟消息。
 
-| 能力 | 应用场景 | 替换方案 |
-|------|---------|---------|
-| 延迟消息 | 订单超时取消（pending 30 分钟未支付自动取消）、寄养到期自动完成 | 替代当前 `@Scheduled` 全表扫描 |
-| 死信队列 (DLX) | 退款审批超时自动处理、支付回调重试（指数退避） | 当前无此能力 |
-| 事件广播 | 支付成功 → 通知服务发消息 + 商家 Dashboard 实时刷新 | 当前同步调用，耦合度高 |
+| 能力 | 应用场景 | 状态 |
+|------|---------|:--:|
+| 延迟消息 | 订单超时取消（pending 30min 未支付）、寄养到期自动完成 | 已实现 |
+| 死信队列 (DLX) | DLX + per-message TTL 实现可变延迟，无插件依赖 | 已实现 |
+| 事件广播 | 支付成功 → 异步创建通知消息 | 已实现 |
 
-**为什么用延迟消息替代定时任务：**
+#### 已实现：延迟消息（DLX + TTL）
 
-当前 `@Scheduled` 每次执行全表扫描 `WHERE status = 'paid' AND start_date <= today`，数据量小时无问题，但订单量增长后扫描开销线性增长。延迟消息精确到单条订单，到期才触发回调，不消耗数据库资源，且支持消息持久化，服务重启不丢消息。RabbitMQ 通过 **死信队列 + TTL** 实现延迟投递，生产环境经过充分验证，是电商系统的标准做法。
+**实现文件：**
+- `config/RabbitMQConfig.java` — 交换机、队列、绑定拓扑声明
+- `mq/OrderMessage.java` — 消息体（type + orderId + shopId + eventTime）
+- `mq/OrderMessageSender.java` — 发送延迟消息（per-message TTL）和事件消息
+- `mq/OrderMessageListener.java` — 消费延迟消息执行状态流转 + 消费支付事件创建通知
+
+**为什么不依赖 rabbitmq-delayed-message-exchange 插件：**
+
+该插件需要在 RabbitMQ 服务端单独安装，部分云环境不支持。DLX + TTL 是 RabbitMQ 原生能力，无需额外插件，通用性更强。per-message TTL 可以在每条消息上设置不同的过期时间，满足"30 分钟超时取消"和"按寄养日期触发"两种不同延迟需求。
+
+**消息流转架构：**
+
+```
+订单创建/支付                    延迟队列               死信交换机        处理队列            消费者
+─────────────                  ────────              ──────────       ────────          ────────
+                                                          
+createOrder ──→ TIMEOUT_CANCEL ──→ order.delay.queue ──→ (TTL到期) ──→ order.dlx.exchange ──→ order.process.queue ──→ 取消订单
+  (pending)        30min TTL        (无消费者)                                       │
+                                                            	 	                  │
+createPayment ─→ START_BOARDING ──→ order.delay.queue ──→ (TTL到期) ──→ order.dlx.exchange ──→ order.process.queue ──→ 开始寄养
+  (paid)         startDate-now       (无消费者)                                       │        └→ 发送 COMPLETE_BOARDING
+                                                                                      │
+COMPLETE_BOARDING ─────────────────→ order.delay.queue ──→ (TTL到期) ──→ order.dlx.exchange ──→ order.process.queue ──→ 寄养完成
+  (boarding)      endDate+1-now      (无消费者)
+```
+
+**三种延迟消息的状态流转链：**
+
+| 消息类型 | 触发时机 | TTL | 消费动作 | 幂等校验 |
+|---------|---------|-----|---------|---------|
+| `TIMEOUT_CANCEL` | 订单创建后（pending） | 30 min | pending → cancelled，恢复档期 | 订单非 pending 则跳过 |
+| `START_BOARDING` | 支付成功后（paid） | startDate - now | paid → boarding，发送 COMPLETE_BOARDING | 订单非 paid 则跳过 |
+| `COMPLETE_BOARDING` | 寄养开始后（boarding） | endDate+1day - now | boarding → completed | 订单非 boarding 则跳过 |
+
+**为什么一条消息链式触发下一条：**
+
+`START_BOARDING` 消费成功后立即发送 `COMPLETE_BOARDING`，而不是在订单创建时就发两条。原因是：如果订单在 pending 状态就超时取消了，`COMPLETE_BOARDING` 消息就成了废消息。链式发送保证只有真正进入 boarding 的订单才会触发完成消息，减少无效消息。
+
+**与定时任务的对比：**
+
+| | `@Scheduled` 全表扫描 | RabbitMQ 延迟消息 |
+|------|:---:|:---:|
+| 触发方式 | 每日 0:00 扫描全部订单 | 每条订单精确到期触发 |
+| 数据库负载 | 每次扫描 `WHERE status = ? AND date <= ?` | 仅按主键 `SELECTById` |
+| 实时性 | 最多延迟 24 小时 | 精确到毫秒级 |
+| 消息可靠性 | 无持久化，服务宕机漏执行 | 消息持久化到磁盘，重启不丢 |
+| 多实例 | 需分布式锁防止重复执行 | MQ 自带竞争消费，天然防重 |
+| 可观测性 | 仅日志 | RabbitMQ Management 面板可视化 |
+
+定时任务未删除，仅注释了 `@Scheduled`，保留方法体作为 RabbitMQ 故障时的补漏手段。需要时取消注释即可恢复。
+
+#### 已实现：支付成功事件广播
+
+**流程：**
+
+```
+PaymentServiceImpl.createPayment()
+    │
+    └─→ orderMessageSender.sendOrderEvent(PAYMENT_SUCCESS)
+            │
+            ▼
+    order.event.exchange (topic) ──→ order.event.queue ──→ OrderMessageListener
+                                                              │
+                                                              └─→ 创建 Notification
+                                                                   userId = 订单用户
+                                                                   title = "支付成功"
+                                                                   content = "订单 ORDxxx 已支付成功"
+```
+
+支付成功后不再同步调用通知创建逻辑，而是发布事件。消费者异步处理，支付接口响应时间不受通知创建影响。后续拆分微服务时，通知服务可直接订阅 `order.event.exchange` 获取事件，无需修改支付模块代码。
+
+**手动 ACK 保证消息不丢失：**
+
+```java
+@RabbitListener(queues = ORDER_PROCESS_QUEUE, ackMode = "MANUAL")
+public void handleDelayedMessage(OrderMessage msg, Channel channel, long tag) {
+    try {
+        // 业务处理
+        channel.basicAck(tag, false);   // 成功 → 确认消费
+    } catch (Exception e) {
+        channel.basicNack(tag, false, true); // 失败 → 重新入队重试
+    }
+}
+```
+
+#### 设计亮点
+
+1. **DLX + TTL 无插件依赖** — 使用 RabbitMQ 原生死信队列实现延迟投递，不依赖 `rabbitmq-delayed-message-exchange` 插件，任何 RabbitMQ 环境开箱可用
+
+2. **per-message TTL 灵活延迟** — 不同业务场景使用不同 TTL（30min 固定 vs 按寄养日期动态计算），无需为每种 TTL 创建独立队列，降低运维复杂度
+
+3. **链式消息触发** — START_BOARDING 消费成功后才发送 COMPLETE_BOARDING，避免无效消息。若订单在 pending 阶段超时取消，后续消息链自动中断
+
+4. **幂等消费** — 每条消息处理前先检查订单当前状态，仅当状态匹配时才执行流转。防止消息重复投递导致状态错乱，也允许定时任务补漏时二者不会冲突
+
+5. **手动 ACK + 重新入队** — 业务异常时 `basicNack(tag, false, true)` 让消息重回队列，配合 RabbitMQ 的消息持久化（durable=true），保证进程崩溃也不丢消息
+
+6. **定时任务保留兜底** — `@Scheduled` 仅注释不删除，RabbitMQ 故障时可立即恢复定时扫描补漏，避免单点依赖
+
+7. **事件异步解耦** — 支付成功通过 TopicExchange 广播，消费者独立处理通知创建。支付接口响应不受通知逻辑阻塞，后续拆分微服务时直接复用事件通道
 
 ---
 

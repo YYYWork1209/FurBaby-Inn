@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.furbaby.furbaby.cache.CacheHelper;
 import com.furbaby.furbaby.lock.DistributedLock;
+import com.furbaby.furbaby.mq.OrderMessageSender;
 import com.furbaby.furbaby.dto.OrderCancelDTO;
 import com.furbaby.furbaby.dto.OrderCreateDTO;
 import com.furbaby.furbaby.entity.Order;
@@ -52,6 +53,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final JWTUtils jwtUtils;
     private final CacheHelper cacheHelper;
     private final DistributedLock distributedLock;
+    private final OrderMessageSender orderMessageSender;
 
     @Override
     public OrderCreateVO createOrder(String token, OrderCreateDTO dto) {
@@ -136,6 +138,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
             cacheHelper.evictPattern("shop:schedule:" + dto.getShopId() + ":*");
             cacheHelper.evictPattern("shop:list:*");
+
+            orderMessageSender.sendTimeoutCancel(order.getId(), dto.getShopId());
 
             return OrderCreateVO.builder()
                     .orderId(order.getId())

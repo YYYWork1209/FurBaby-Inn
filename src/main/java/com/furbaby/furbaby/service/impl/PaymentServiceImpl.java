@@ -3,6 +3,8 @@ package com.furbaby.furbaby.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.furbaby.furbaby.cache.CacheHelper;
 import com.furbaby.furbaby.lock.DistributedLock;
+import com.furbaby.furbaby.mq.OrderMessage;
+import com.furbaby.furbaby.mq.OrderMessageSender;
 import com.furbaby.furbaby.dto.PaymentCreateDTO;
 import com.furbaby.furbaby.dto.RefundDTO;
 import com.furbaby.furbaby.entity.Order;
@@ -48,6 +50,7 @@ public class PaymentServiceImpl implements IPaymentService {
     private final JWTUtils jwtUtils;
     private final CacheHelper cacheHelper;
     private final DistributedLock distributedLock;
+    private final OrderMessageSender orderMessageSender;
 
     @Override
     public PaymentCreateVO createPayment(String token, PaymentCreateDTO createDTO) {
@@ -92,6 +95,18 @@ public class PaymentServiceImpl implements IPaymentService {
         order.setPayTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         orderMapper.updateById(order);
+
+        // 发送寄养开始延迟消息（TTL = startDate - now）
+        orderMessageSender.sendStartBoarding(order.getId(), order.getShopId(),
+                order.getStartDate().atStartOfDay());
+
+        // 发送支付成功事件 → 通知服务
+        orderMessageSender.sendOrderEvent(OrderMessage.builder()
+                .orderId(order.getId())
+                .shopId(order.getShopId())
+                .type("PAYMENT_SUCCESS")
+                .eventTime(LocalDateTime.now())
+                .build());
 
         return PaymentCreateVO.builder()
                 .paymentId(payment.getId())
