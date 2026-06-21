@@ -1,6 +1,7 @@
 package com.furbaby.furbaby.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.furbaby.furbaby.cache.CacheHelper;
 import com.furbaby.furbaby.dto.PaymentCreateDTO;
 import com.furbaby.furbaby.dto.RefundDTO;
 import com.furbaby.furbaby.entity.Order;
@@ -43,6 +44,7 @@ public class PaymentServiceImpl implements IPaymentService {
     private final ShopMapper shopMapper;
     private final ShopScheduleMapper shopScheduleMapper;
     private final JWTUtils jwtUtils;
+    private final CacheHelper cacheHelper;
 
     @Override
     public PaymentCreateVO createPayment(String token, PaymentCreateDTO createDTO) {
@@ -207,6 +209,7 @@ public class PaymentServiceImpl implements IPaymentService {
                 s.setUpdateTime(LocalDateTime.now());
                 shopScheduleMapper.updateById(s);
             }
+            cacheHelper.evictPattern("shop:schedule:" + order.getShopId() + ":*");
             return Map.of("success", "true", "status", "refunded");
         } else if ("reject".equals(action)) {
             refund.setStatus(RefundStatus.failed);

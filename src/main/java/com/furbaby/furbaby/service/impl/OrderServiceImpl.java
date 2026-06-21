@@ -3,6 +3,7 @@ package com.furbaby.furbaby.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.furbaby.furbaby.cache.CacheHelper;
 import com.furbaby.furbaby.dto.OrderCancelDTO;
 import com.furbaby.furbaby.dto.OrderCreateDTO;
 import com.furbaby.furbaby.entity.Order;
@@ -47,6 +48,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final ShopMapper shopMapper;
     private final PetMapper petMapper;
     private final JWTUtils jwtUtils;
+    private final CacheHelper cacheHelper;
 
     @Override
     public OrderCreateVO createOrder(String token, OrderCreateDTO dto) {
@@ -118,6 +120,9 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             s.setUpdateTime(LocalDateTime.now());
             shopScheduleMapper.updateById(s);
         }
+
+        cacheHelper.evictPattern("shop:schedule:" + dto.getShopId() + ":*");
+        cacheHelper.evictPattern("shop:list:*");
 
         return OrderCreateVO.builder()
                 .orderId(order.getId())
@@ -239,6 +244,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             s.setUpdateTime(LocalDateTime.now());
             shopScheduleMapper.updateById(s);
         }
+
+        cacheHelper.evictPattern("shop:schedule:" + order.getShopId() + ":*");
 
         return Map.of("success", "true", "status", "cancelled");
     }

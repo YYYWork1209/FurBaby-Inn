@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.furbaby.furbaby.cache.CacheHelper;
 import com.furbaby.furbaby.dto.ReviewReplyDTO;
 import com.furbaby.furbaby.dto.ReviewSubmitDTO;
 import com.furbaby.furbaby.entity.BoardingPhoto;
@@ -50,6 +51,7 @@ public class ReviewServiceImpl implements IReviewService {
     private final UserMapper userMapper;
     private final BoardingPhotoMapper boardingPhotoMapper;
     private final JWTUtils jwtUtils;
+    private final CacheHelper cacheHelper;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -94,6 +96,8 @@ public class ReviewServiceImpl implements IReviewService {
         reviewMapper.insert(review);
 
         recalcShopRating(order.getShopId());
+        cacheHelper.evict("shop:detail:" + order.getShopId());
+        cacheHelper.evictPattern("shop:list:*");
 
         return ReviewVO.builder()
                 .reviewId(review.getId())
