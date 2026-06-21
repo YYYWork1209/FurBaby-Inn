@@ -39,6 +39,7 @@ spring:
       simple:
         acknowledge-mode: manual   # 手动确认，消费成功后才 ACK，防止消息丢失
         prefetch: 1                # 每次只取一条，避免积压
+    virtual-host: /furbaby
 
 jwt:
 #  Keys.hmacShaKeyFor 报错：如果你的 secret 长度小于 32 字节（即少于 32 个字符），启动会报 weak key 异常。
