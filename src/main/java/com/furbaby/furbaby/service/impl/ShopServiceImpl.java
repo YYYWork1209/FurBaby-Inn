@@ -75,8 +75,10 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
         if ("rating".equals(sort)) {
             wrapper.orderByDesc(Shop::getRating);
-        } else if ("price".equals(sort)) {
+        } else if ("price_asc".equals(sort)) {
             wrapper.orderByAsc(Shop::getPrice);
+        } else if ("price_desc".equals(sort)) {
+            wrapper.orderByDesc(Shop::getPrice);
         } else {
             wrapper.orderByDesc(Shop::getCreateTime);
         }
