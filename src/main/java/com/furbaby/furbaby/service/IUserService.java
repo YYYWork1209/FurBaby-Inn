@@ -10,6 +10,8 @@ import com.furbaby.furbaby.vo.LoginVO;
 import com.furbaby.furbaby.vo.RegisterVO;
 import com.furbaby.furbaby.vo.UserInfoVO;
 
+import java.util.Map;
+
 /**
  * <p>
  * 用户表 服务类
@@ -29,4 +31,6 @@ public interface IUserService extends IService<User> {
     UserInfoVO updateCurrentUserInfo(String token, UserUpdateDTO updateDTO);
 
     UserInfoVO getUserInfoById(Long userId);
+
+    Map<String, String> logout(String token);
 }

@@ -13,6 +13,7 @@ import com.furbaby.furbaby.exception.NoRegisterException;
 import com.furbaby.furbaby.exception.PhoneOrPasswordException;
 import com.furbaby.furbaby.exception.UnAuthorizedException;
 import com.furbaby.furbaby.mapper.UserMapper;
+import com.furbaby.furbaby.security.TokenBlacklist;
 import com.furbaby.furbaby.service.IUserService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -25,6 +26,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * <p>
@@ -39,6 +41,7 @@ import java.time.LocalDateTime;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     private final JWTUtils jwtUtils;
+    private final TokenBlacklist tokenBlacklist;
 
     @Override
     public Result<LoginVO> login(LoginDTO loginDTO) {
@@ -153,5 +156,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         UserInfoVO vo = new UserInfoVO();
         BeanUtils.copyProperties(user, vo);
         return vo;
+    }
+
+    @Override
+    public Map<String, String> logout(String token) {
+        tokenBlacklist.blacklist(token);
+        return Map.of("success", "true", "message", "已退出登录");
     }
 }

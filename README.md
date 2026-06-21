@@ -87,6 +87,7 @@ wrapper.last("LIMIT " + offset + "," + size);
 | GET | `/user/info` | 获取当前用户信息 | 是 |
 | PUT | `/user/info` | 更新当前用户信息 | 是 |
 | GET | `/user/info/{id}` | 获取指定用户公开信息 | — |
+| POST | `/user/logout` | 退出登录，Token 加入黑名单 | 是 |
 
 ### 实现要点
 
@@ -569,6 +570,72 @@ try {
 4. **锁粒度的业务隔离** — `lock:shop:schedule:3` 和 `lock:shop:schedule:5` 是两把独立的锁，商家 3 和商家 5 的预约完全并行，锁只阻止对同一商家的并发竞争
 
 5. **用户友好降级** — 获取锁超时不抛系统异常，而是返回"预约人数较多，请稍后重试"，用户可以刷新重试，而非看到 500 错误
+
+#### 已实现：Token 黑名单
+
+**实现文件：** `security/TokenBlacklist.java`、`filter/LoginFilter.java`（已改造并启用）
+
+**解决的问题：** JWT 是无状态的，签发后直到过期前始终有效，无法主动收回。Token 黑名单提供了一种撤销机制——将需要作废的 Token 存入 Redis，后续请求携带该 Token 时直接被拦截。
+
+**黑名单判定标准（什么情况下将 Token 加入黑名单）：**
+
+| 场景 | 触发方式 | 判定依据 |
+|------|---------|---------|
+| 用户主动登出 | `POST /user/logout` | 用户明确发起登出操作，当前 Token 立即失效 |
+| 修改密码 | 业务层调用 `blacklist(token)` | 密码变更后旧 Token 应失效，防止被盗用后继续使用 |
+| 管理员封禁/冻结用户 | 管理端调用 | 违规用户所有活跃 Token 加入黑名单，强制下线 |
+| 检测到异常行为 | 风控系统调用（扩展预留） | 同一 Token 短时间内请求频率异常、IP 跳变等 |
+
+> 不需要入黑名单：Token 自然过期的（JWT 自带 expiration 校验，无需黑名单处理）；Token 格式错误的（Filter 在签名校验阶段已拦截）。
+
+**存储策略：**
+
+```
+Key:   blacklist:token:{sha256前32位}
+Value: "1"
+TTL:   Token剩余有效期（毫秒）
+
+示例：
+Token 在 2026-06-22 14:00 过期，用户在 2026-06-21 14:00 登出
+→ TTL = 24小时，到期后 Redis 自动删除，不占持久内存
+```
+
+选用 SHA-256 哈希而非明文 Token 作为键，避免原始 JWT 暴露在 Redis 中。TTL 对齐 Token 自然过期时间，确保黑名单条目不会无限积累。
+
+**请求拦截流程：**
+
+```
+请求到达 LoginFilter
+  │
+  ├─ 无 Authorization 头 → 放行（公开接口）
+  │
+  └─ 有 Authorization 头
+       │
+       ├─ 格式校验（Bearer xxx）
+       ├─ JWT 签名 + 过期校验
+       ├─ 黑名单查询 → 命中 → 401 "Token已失效"
+       └─ 全部通过 → 放行
+```
+
+**LoginFilter 改动说明：**
+
+此前 `@ServletComponentScan` 被注释掉，Filter 未生效，各 Controller 手动提取 Token。此次改造：
+
+1. **启用全局 Filter** — 取消注释 `@ServletComponentScan`
+2. **不强制认证** — 改为"有 Token 才校验，无 Token 放行"，兼容公开接口（商家列表、详情、档期等）
+3. **修复原 Filter 的逻辑缺陷** — 原代码在放行登录/注册后没有 `return`，导致继续执行 Token 校验而报错
+4. **集成黑名单检查** — 在签名校验之后、业务处理之前插入黑名单查询
+
+**容错设计：**
+
+- Redis 不可用时 `isBlacklisted()` 返回 `false`（放过），保证系统可用性优先于黑名单检查
+- `blacklist()` 操作失败只记日志不抛异常，不影响登出响应
+
+**集成端点：**
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/user/logout` | 退出登录，当前 Token 加入黑名单，返回 `{ success: true, message: "已退出登录" }` |
 
 ---
 

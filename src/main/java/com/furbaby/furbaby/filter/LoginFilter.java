@@ -1,8 +1,13 @@
 package com.furbaby.furbaby.filter;
 
 import com.furbaby.furbaby.exception.UnAuthorizedException;
+import com.furbaby.furbaby.security.TokenBlacklist;
 import com.furbaby.furbaby.utils.JWTUtils;
-import jakarta.servlet.*;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,9 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.IOException;
 
 /**
- * 登录过滤器
- * 用于检查用户是否登录
- * 拦截所有请求,检查用户是否登录
+ * 全局 Token 校验过滤器。
+ *
+ * 策略：不强制所有请求携带 Token（公开接口无需认证），
+ * 但如果请求携带了 Authorization 头，则校验其合法性和黑名单状态。
  */
 @WebFilter("/*")
 public class LoginFilter implements Filter {
@@ -21,53 +27,48 @@ public class LoginFilter implements Filter {
     @Autowired
     private JWTUtils jwtUtils;
 
-    /**
-     * 初始化过滤器,在应用启动时调用只执行一次
-     * @param filterConfig 过滤器配置
-     * @throws ServletException 初始化过滤器时抛出的异常
-     */
+    @Autowired
+    private TokenBlacklist tokenBlacklist;
+
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
+    public void init(jakarta.servlet.FilterConfig filterConfig) throws ServletException {
         Filter.super.init(filterConfig);
     }
 
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+            throws IOException, ServletException {
 
-        // 转换为HttpServletRequest，不然无法获取请求头中的token
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
-        // 获取请求URI,依据请求路径判断是否需要过滤
-        String uri = request.getRequestURI();
-        // 若是登录和注册请求则放行请求
-        if(uri.contains("/user/login") || uri.contains("/user/register")){
+        String token = request.getHeader("Authorization");
+
+        // 无 Token → 公开接口，直接放行
+        if (token == null || token.isBlank()) {
             filterChain.doFilter(request, response);
+            return;
         }
 
-        // 进行token验证
-        // 从请求头中获取token
-        // 如果token为空,则抛出未授权异常
-        String token =  request.getHeader("Authorization");
-        // 如果token以"Bearer "开头,则移除"Bearer "前缀,保留token内容
-        if (token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }else{
-            throw new UnAuthorizedException("Token格式错误,请以Bearer \"开头");
+        // 有 Token → 校验格式
+        if (!token.startsWith("Bearer ")) {
+            throw new UnAuthorizedException("Token格式错误，请以 Bearer 开头");
+        }
+        token = token.substring(7);
+
+        // 校验签名和过期时间
+        if (!jwtUtils.validateToken(token)) {
+            throw new UnAuthorizedException("Token无效或已过期，请重新登录");
         }
 
-        // 如果token不为空,则进行Token验证
-        if(!jwtUtils.validateToken(token)){
-            //解析失败,则抛出未授权异常
-            throw new UnAuthorizedException("请重新登录！");
+        // 校验黑名单
+        if (tokenBlacklist.isBlacklisted(token)) {
+            throw new UnAuthorizedException("Token已失效，请重新登录");
         }
-        // 如果token验证通过,则放行请求
-         filterChain.doFilter(request, response);
+
+        filterChain.doFilter(request, response);
     }
 
-    /**
-     * 销毁过滤器,在应用关闭时调用只执行一次
-     */
     @Override
     public void destroy() {
         Filter.super.destroy();
