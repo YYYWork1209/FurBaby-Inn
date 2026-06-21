@@ -118,7 +118,7 @@ wrapper.last("LIMIT " + offset + "," + size);
 
 ### 实现要点
 
-- **商家列表**：支持 keyword 多字段模糊搜索（名称/标签/描述/地址）；支持 rating / price / 默认排序
+- **商家列表**：支持 keyword 多字段模糊搜索（名称/标签/描述/地址）；支持 rating（评分降序）/ price_asc（价格升序）/ price_desc（价格降序）三种排序，未指定时默认按创建时间降序
 - **档期发布**：JWT 反查商家身份（shop.userId == userId），支持新增/更新已有日期，批量处理
 - **档期扣减**：通过 delta 增量更新（下单 delta=-1，退单 delta=+1），保证库存一致性
 - **商家入驻**：一个用户只能注册一个商家；tags/services 以 `List<String>` 入参，写入时序列化为 JSON
@@ -164,11 +164,19 @@ wrapper.last("LIMIT " + offset + "," + size);
 ### 订单状态流转
 
 ```
-         ┌─→ cancelled ←──┐
-pending ─┤                 │
-    │    └─→ paid ─→ refunding ─→ refunded
-    │           │
-    └─→ boarding ─→ completed
+                   ┌─→ cancelled ←──┐
+pending ───────────┤                 │
+    │              └─→ paid ─────────┤
+    │                   │  ↑         │
+    │                   │  │ reject  │
+    │                   ↓  │         │
+    └────────────→ boarding ┘         │
+                        │            │
+                        ↓            │
+                    completed        │
+                                     │
+              paid/boarding ─→ refunding ──→ refunded
+                                   (商家 approve)
 ```
 
 | 状态 | 含义 | 可执行操作 |
@@ -178,7 +186,7 @@ pending ─┤                 │
 | `boarding` | 寄养中 | 查看照片、申请退款 |
 | `completed` | 已完成 | 评价 |
 | `cancelled` | 已取消 | — |
-| `refunding` | 退款中 | — |
+| `refunding` | 退款中 | 商家确认/拒绝 |
 | `refunded` | 已退款 | — |
 
 ### 实现要点
@@ -222,12 +230,17 @@ pending ─┤                 │
 |------|------|------|:---:|
 | POST | `/payment/create` | 创建支付单 | 是 |
 | GET | `/payment/status/{id}` | 查询支付状态 | — |
-| POST | `/payment/refund` | 申请退款 | 是 |
+| POST | `/payment/refund` | 申请退款（宠主/商家均可发起） | 是 |
+| PUT | `/payment/refund/{id}/process` | 商家处理退款（同意/拒绝） | 是（商家） |
 
 ### 实现要点
 
-- **创建支付**：校验订单归属 + 状态为 `pending` → 生成支付单号 `PAY + 时间戳 + 4位随机数` → 根据支付方式生成模拟 `qrCode`（微信）或 `payUrl`（支付宝）→ 30 分钟过期
-- **退款申请**：校验订单为 `paid`/`boarding` 状态 → 创建 Refund 记录（状态 `pending`）→ 更新订单状态为 `refunding`
+- **创建支付**：校验订单归属 + 状态为 `pending` → 生成支付单号 `PAY + 时间戳 + 4位随机数` → 根据支付方式生成模拟 `qrCode`（微信）或 `payUrl`（支付宝）→ 30 分钟过期 → 同步更新订单状态为 `paid`
+- **退款申请**：校验订单为 `paid`/`boarding` 状态，且发起人必须为订单宠主或订单所属店铺的商家 → 创建 Refund 记录（状态 `pending`）→ 更新订单状态为 `refunding`
+- **商家处理退款**：
+  - `approve`（同意）：退款记录标记 `success`，订单状态置为 `refunded`，逐日恢复档期库存
+  - `reject`（拒绝）：退款记录标记 `failed`，订单状态恢复为 `boarding`（继续寄养）
+  - 仅订单对应店铺的商家有权操作
 - **支付状态**：纯查询，返回 `pending / success / failed / closed` 四种状态
 
 ---
@@ -309,8 +322,11 @@ pending ─┤                 │
     └─→ 取消/退款路径
           ├─→ 取消预约 (PUT /order/cancel/{id})
           │     └─→ [系统] 恢复档期库存
-          └─→ 申请退款 (POST /payment/refund)
-                └─→ [系统] 创建退款记录 → 订单状态: refunding
+          ├─→ 申请退款 (POST /payment/refund)  ← 宠主或商家均可发起
+          │     └─→ [系统] 创建退款记录 → 订单状态: refunding
+          └─→ 商家处理退款 (PUT /payment/refund/{id}/process)
+                ├─→ approve: 退款成功，订单 refunded，恢复档期
+                └─→ reject: 退款驳回，订单恢复 boarding
 ```
 
 ### 模块依赖关系
@@ -321,7 +337,7 @@ Controller 层:
   ShopController    ← 依赖 JWT（商家身份验证）
   PetController     ← 依赖 JWT（用户归属）
   OrderController   ← 依赖 Shop + Pet + Schedule（下单校验链）
-  PaymentController ← 依赖 Order（订单状态驱动）
+  PaymentController ← 依赖 Order + Shop（退款需校验商家身份）
   ReviewController  ← 依赖 Order + Shop + User（评价关联）
   NotifyController  ← 依赖 JWT（用户归属）
 
@@ -352,6 +368,10 @@ Controller 层:
 7. **订单号/支付单号**：`ORD/PAY + yyyyMMddHHmmss + 4位随机数`，支持高并发不重复，可读性强
 
 8. **评价唯一性**：一个订单只能评价一次，防止刷评
+
+9. **退款双通道**：宠主和商家均可发起退款申请，商家审批后自动恢复档期库存或被驳回继续寄养，形成完整退款闭环
+
+10. **定时任务兜底**：每日凌晨自动扫描，将到达寄养日期的 paid 订单转为 boarding，将已过结束日期的 boarding 订单转为 completed，无需人工干预
 
 ---
 
@@ -397,3 +417,106 @@ source sql/demo_accounts.sql;       -- 导入测试数据
 | notification | 27 | 商家通知 10 条 + 宠主通知 17 条 |
 
 > **角色分离原则**：订单/支付/评价的 user_id 全部为宠主角色，商家角色只拥有店铺、上传照片和系统通知。
+
+---
+
+## 后续演进：从单体到微服务
+
+当前项目采用 Spring Boot 单体架构，所有模块在一个进程内运行。随着业务量增长和团队规模扩大，按以下三个阶段逐步演进。
+
+### 演进路线图
+
+```
+Redis ────→ RabbitMQ ────→ 微服务拆分 + Gateway
+(基础设施)    (异步消息)      (服务治理)
+```
+
+三个阶段按依赖关系依次推进，每一步都为下一步铺设基础设施，避免重复建设。
+
+---
+
+### 第一阶段：Redis 集成
+
+**目标：** 在单体架构内引入缓存和分布式锁，为后续拆分打好基础。
+
+| 能力 | 应用场景 | 解决的问题 |
+|------|---------|-----------|
+| 数据缓存 | 商家列表（热门排序）、商家详情、档期数据 — 热点数据 TTL 5~30 分钟，减轻数据库读压力 | 高并发读场景下的 DB 瓶颈 |
+| 分布式锁 | 下单扣减档期库存、支付回调幂等、退款审批防重 — 保证多实例下的并发安全 | 当前仅靠数据库行锁，多实例部署后会失效 |
+| Token 黑名单 | 配合 JWT 实现主动登出/强制下线 | JWT 无状态特性导致无法主动失效 Token |
+
+缓存策略采用 **Cache-Aside** 模式（先查缓存，未命中则查库并回填），缓存更新采用 **先写库、后删缓存** 保证一致性。分布式锁使用 `SETNX` + Lua 脚本实现可重入锁，下单扣库存等关键路径通过锁保护。
+
+---
+
+### 第二阶段：RabbitMQ 集成
+
+**目标：** 用消息队列替换定时轮询，实现异步解耦和可靠延迟消息。
+
+| 能力 | 应用场景 | 替换方案 |
+|------|---------|---------|
+| 延迟消息 | 订单超时取消（pending 30 分钟未支付自动取消）、寄养到期自动完成 | 替代当前 `@Scheduled` 全表扫描 |
+| 死信队列 (DLX) | 退款审批超时自动处理、支付回调重试（指数退避） | 当前无此能力 |
+| 事件广播 | 支付成功 → 通知服务发消息 + 商家 Dashboard 实时刷新 | 当前同步调用，耦合度高 |
+
+**为什么用延迟消息替代定时任务：**
+
+当前 `@Scheduled` 每次执行全表扫描 `WHERE status = 'paid' AND start_date <= today`，数据量小时无问题，但订单量增长后扫描开销线性增长。延迟消息精确到单条订单，到期才触发回调，不消耗数据库资源，且支持消息持久化，服务重启不丢消息。RabbitMQ 通过 **死信队列 + TTL** 实现延迟投递，生产环境经过充分验证，是电商系统的标准做法。
+
+---
+
+### 第三阶段：微服务拆分 + Spring Cloud Gateway
+
+**目标：** 按业务边界拆分为独立微服务，引入网关统一入口和服务治理。
+
+**拆分后的架构：**
+
+```
+Vue 3 前端
+    │
+    ▼
+Spring Cloud Gateway (统一鉴权 / 限流 / 路由)
+    │
+    ├── user-service      (用户 + JWT 签发)
+    ├── shop-service      (商家 + 档期管理)
+    ├── order-service     (预约 + 订单状态机)
+    ├── payment-service   (支付 + 退款)
+    ├── review-service    (评价 + 寄养照片)
+    └── notify-service    (通知消息)
+```
+
+**基础设施组件：**
+
+| 组件 | 用途 | 说明 |
+|------|------|------|
+| Nacos | 注册中心 + 配置中心 | 替代 `application.yml` 分散配置，动态刷新 |
+| Spring Cloud Gateway | API 网关 | 替代当前各 Controller 手动 `@RequestHeader` 取 Token，统一鉴权 |
+| OpenFeign | 服务间同步调用 | 替代当前 Service 直接注入 Mapper 跨表查询 |
+| Sentinel | 熔断降级 | 防止级联故障，保护核心链路 |
+
+**拆分顺序（按依赖关系排列）：**
+
+| 阶段 | 服务 | 关键动作 |
+|:---:|------|---------|
+| 1 | user-service | 独立认证鉴权，其他服务通过 Feign 验证 Token |
+| 2 | shop-service | 商家 + 档期独立，暴露 Feign 接口供 order-service 调用 |
+| 3 | order-service | 订单状态机独立，下单时通过 Feign 校验宠物/商家/档期 |
+| 4 | payment-service | 支付/退款独立，通过 RabbitMQ 发送支付成功事件 |
+| 5 | review-service | 评价 + 照片独立，评价后通过事件更新商家评分 |
+| 6 | notify-service | 通知独立，监听 RabbitMQ 事件生成通知 |
+| 7 | gateway | 最后上线，统一接管所有路由 |
+
+当前代码已采用 **Service 接口 + Impl** 分离、**DTO/VO/Entity 三层模型**、**Result 统一响应格式**，与微服务架构天然对齐。拆分时核心工作是拷包 + 将直接注入的 Mapper 调用替换为 Feign 远程调用，Service 层业务逻辑可整体复用。
+
+**数据拆分策略：**
+
+初期各服务共享同一数据库实例（分库不分表），通过独立 Schema 或表前缀做逻辑隔离，降低数据迁移风险。后续再按实际负载逐步分库，配合 Canal + Binlog 做数据同步。分布式事务采用 Seata AT 模式，覆盖下单扣库存 + 创建订单这种跨服务的写操作。
+
+---
+
+### 演进原则
+
+1. **先基础设施，后服务拆分** — Redis 和 RabbitMQ 是微服务的通信基础设施，先部署好，拆分时直接使用
+2. **增量迁移，逐步验证** — 每次只拆分一个服务，上线观察后再推进下一个，保证系统可用性
+3. **单体不做大改** — 当前单体代码结构已为拆分设计（接口分离、DTO/VO 隔离），拆分时不需要推翻重来
+4. **监控先行** — 引入 Spring Boot Actuator + Prometheus + Grafana，对每个新上线的服务建立健康检查和核心指标监控
