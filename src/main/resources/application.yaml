@@ -49,15 +49,15 @@ mybatis-plus:
           max-idle: 4        # 最大空闲连接
           min-idle: 2        # 最小空闲连接
           max-wait: 3000ms   # 获取连接最大等待时间
-    rabbitmq:
-      host: 121.196.197.180
-      port: 5672
-      username: rabbitMQ
-      password: Qsnhsdwjz9
-      listener:
-        simple:
-          acknowledge-mode: manual   # 手动确认，消费成功后才 ACK，防止消息丢失
-          prefetch: 1                # 每次只取一条，避免积压
+  rabbitmq:
+    host: 121.196.197.180
+    port: 5672
+    username: rabbitMQ
+    password: Qsnhsdwjz9
+    listener:
+      simple:
+        acknowledge-mode: manual   # 手动确认，消费成功后才 ACK，防止消息丢失
+        prefetch: 1                # 每次只取一条，避免积压
 
 springdoc:
   swagger-ui:
